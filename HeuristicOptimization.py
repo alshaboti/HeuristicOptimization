@@ -3,11 +3,16 @@ from scipy.spatial.distance import euclidean, cdist
 from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import minimum_spanning_tree
 import random
-
+from simanneal import Annealer
 #1000000 points, dim=10, value: 0:100
 # freq  {50: 0, 100:0,150:0,200.0: 1, 250.0: 241,300.0: 11022, 400.0: 400753, 450.0: 367548, 350.0: 117474,
 #  500.0: 97764,  550.0: 5130,  600.0: 67, 650:0, 700:0, 800:0,850:0,900:0,950:0}
-
+rand = random
+# rand.seed(4759843)
+np_rand = np.random
+# np_rand.seed(94759843)
+import sys
+import itertools
 
 class JointProbModel:
     """" A Probability model for user preferences"""
@@ -29,7 +34,7 @@ class JointProbModel:
         return 1-(d/(self.max))
 
     def gen_devices(self):
-        self.devices = [np.random.randint(self.att_bound[0], self.att_bound[1], self.dims)
+        self.devices = [np_rand.randint(self.att_bound[0], self.att_bound[1], self.dims)
                         for i in range(0, self.n_devices)]
         for i in range(0, self.n_devices):
             for j in range(i,self.n_devices):
@@ -66,7 +71,7 @@ class SolutionSpace:
 
     def gen_devices(self):
         # return np.random.randint(65, 75, size=(n_devices, k_capbs))
-        self.available_devices = np.array([random.sample(self.subtask_list, self.n_capab) for i in range(self.n_devices)])
+        self.available_devices = np.array([rand.sample(self.subtask_list, self.n_capab) for i in range(self.n_devices)])
         self.task = self.get_task()
 
     def get_init_candidate(self, task):
@@ -96,7 +101,7 @@ class SolutionSpace:
 
     def get_task(self):
         while True:
-            task = random.sample(self.subtask_list,self.n_subtask)
+            task = rand.sample(self.subtask_list,self.n_subtask)
             num_satisfied_tasks = 0
             for t in task:
                 if np.isin(self.available_devices, t).any(axis=0).any():  # any row and col
@@ -107,30 +112,79 @@ class SolutionSpace:
 
 class HillClimbing:
     """"Hill climbing class"""
-    def climb(self, init_node, get_neighbor, get_score):
-        current_node = init_node
-        current_score = get_score(current_node)
+
+    def __init__(self,init_node, get_neighbor, get_score):
+        self.init_node = init_node
+        self.get_neighbor = get_neighbor
+        self.get_score = get_score
+
+    def climb(self):
+        current_node = self.init_node
+        current_score = self.get_score(current_node)
         next_score = current_score
         next_node = current_node
 
         while True:
-            neighbors_list = get_neighbor(next_node)
+            neighbors_list = self.get_neighbor(next_node)
             # go through all nieghbors to get the max score (next_score)
             for neighbor_point in neighbors_list:
-                neigh_score = get_score(neighbor_point)
-                print("neighbor score:", neigh_score)
+                neigh_score = self.get_score(neighbor_point)
+               # print("neighbor score:", neigh_score)
                 if(neigh_score > next_score):
                     next_node = neighbor_point
                     next_score = neigh_score
             # if all neighbor score less than the current then end
             if next_score <= current_score:
-                print("maxima is ", current_node, current_score)
                 return current_node, current_score
             # otherwise jump to the next best neighbor point.
             else:
                 current_score = next_score
                 current_node = next_node
-            print("current solution: ", current_node, " SCORE: ", current_score)
+
+
+class ExhaustiveSearch:
+    """" Exhaustive Search class"""
+    def __init__(self,ful_dict, get_score):
+        self.get_neighbor = get_neighbor
+        self.get_score = get_score
+
+  def cprod(dictionary):
+      """Generate cartesian product"""
+
+      if sys.version_info.major > 2:
+          return (dict(zip(dictionary, x)) for x in itertools.product(*dictionary.values()))
+    
+      return (dict(itertools.izip(dictionary, x))
+              for x in itertools.product(*dictionary.itervalues()))
+
+# https://github.com/perrygeo/simanneal
+
+
+class TasktoIoTmapingProblem(Annealer):
+    """" Mapping tasks functions to a best combination of devices preferred by user"""
+    rand = random
+    # rand.seed(58479)
+    # Tmax = 10000
+    # steps = 10000
+    # updates = 1000
+
+    def __init__(self,init_state, problem_model, pref_model):
+        Annealer.__init__(self, init_state)
+        self.problem_model = problem_model
+        self.pref_model = pref_model
+
+    def move(self):
+        """"select random neighbor"""
+        neighbors = self.problem_model.get_neighbors(self.state)
+        # print(neighbors)
+        self.state = neighbors[rand.randint(0, len(neighbors)-1)]
+        # print(self.state)
+
+    def energy(self):
+        """" calculate the spanning tree distance """
+        e = self.pref_model.get_score(self.state)
+        # print(self.state, e)
+        return 1-e
 
 
 if __name__ == "__main__":
@@ -138,32 +192,31 @@ if __name__ == "__main__":
     total_devices = 100
     n_device_capab = 3
     n_task_subfunc = 3
-    subtask_list = range(65, 80) # char from A to P to represents a sub tasks
+    for i in range(100):
+        subtask_list = range(65, 80) # char from A to P to represents a sub tasks
 
-    prob_model = JointProbModel(total_devices)
+        pref_model = JointProbModel(total_devices)
 
-    sol_space = SolutionSpace(total_devices,subtask_list, n_device_capab, n_task_subfunc)
+        sol_space = SolutionSpace(total_devices,subtask_list, n_device_capab, n_task_subfunc)
 
-    #print(sol_space.available_devices)
-    task = sol_space.task
-    #print(task)
-    init_cand = sol_space.get_init_candidate(task)
-    #print(init_cand)
-    #print(prob_model.get_min_dist(init_cand), " ", prob_model.get_score(init_cand))
+        #print(sol_space.available_devices)
+        task = sol_space.task
+        #print(task)
+        init_cand = sol_space.get_init_candidate(task)
+        #print(init_cand)
+        #print(prob_model.get_min_dist(init_cand), " ", prob_model.get_score(init_cand))
 
-    hc = HillClimbing()
-    hc.climb(init_cand,sol_space.get_neighbors,prob_model.get_score)
+        # for i in sol_space.get_neighbors(init_cand,task):
+        #     print(i, prob_model.get_min_dist(i), " ", prob_model.get_score(i))
+        simulated_annealing = TasktoIoTmapingProblem(init_cand, sol_space, pref_model)
+        simulated_annealing.move()
+        s_cand, s_score = simulated_annealing.anneal()
 
-    # for i in sol_space.get_neighbors(init_cand,task):
-    #     print(i, prob_model.get_min_dist(i), " ", prob_model.get_score(i))
+        hc = HillClimbing(init_cand, sol_space.get_neighbors, pref_model.get_score)
+        h_cand, h_score = hc.climb()
+        print(1.0 - s_score, h_score)
 
 
-
-
-
-
-
-#
 
 
 # print(row)
