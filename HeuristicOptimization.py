@@ -13,12 +13,13 @@ from deap import tools
 
 
 
+
 #1000000 points, dim=10, value: 0:100
 # freq  {50: 0, 100:0,150:0,200.0: 1, 250.0: 241,300.0: 11022, 400.0: 400753, 450.0: 367548, 350.0: 117474,
 #  500.0: 97764,  550.0: 5130,  600.0: 67, 650:0, 700:0, 800:0,850:0,900:0,950:0}
-rand = random
+# rand = random
 # rand.seed(4759843)
-np_rand = np.random
+# np_rand = np.random
 # np_rand.seed(94759843)
 class JointProbModel:
     """" A Probability model for user preferences"""
@@ -40,7 +41,7 @@ class JointProbModel:
         return 1-(d/max_d), # make it list
 
     def gen_devices(self):
-        self.devices = [np_rand.randint(self.att_bound[0], self.att_bound[1], self.dims)
+        self.devices = [np.random.randint(self.att_bound[0], self.att_bound[1], self.dims)
                         for i in range(0, self.n_devices)]
         for i in range(0, self.n_devices):
             for j in range(i,self.n_devices):
@@ -80,19 +81,19 @@ class SolutionSpace:
 
     def gen_devices(self):
         # return 2D array each row is a device capab/func
-        self.available_devices = np.array([rand.sample(self.subtask_list, self.n_capab) for i in range(self.n_devices)])
+        self.available_devices = np.array([random.sample(self.subtask_list, self.n_capab) for i in range(self.n_devices)])
         self.task = self.get_task()
 
-    def get_init_candidate(self, task):
-        # return list of devices index that have capab to
-        # exec task func, first indx for first func etc.
-        init_candidate = []
-        for f in task:
-            for d_number in range(len(self.available_devices)):
-                if np.isin(self.available_devices[d_number], f).any():
-                    init_candidate.append(d_number)
-                    break
-        return init_candidate
+    # def get_init_candidate(self, task):
+    #     # return list of devices index that have capab to
+    #     # exec task func, first indx for first func etc.
+    #     init_candidate = []
+    #     for f in task:
+    #         for d_number in range(len(self.available_devices)):
+    #             if np.isin(self.available_devices[d_number], f).any():
+    #                 init_candidate.append(d_number)
+    #                 break
+    #     return init_candidate
 
     def get_neighbors(self, cand):
         neighbor_list = []
@@ -111,7 +112,7 @@ class SolutionSpace:
     def get_task(self):
      # Return task that is feasible to be executed by avaliable devices
         while True:
-            task = rand.sample(self.subtask_list,self.n_subtask)
+            task = random.sample(self.subtask_list,self.n_subtask)
             num_satisfied_tasks = 0
             for t in task:
                 if np.isin(self.available_devices, t).any(axis=0).any():  # any row and col
@@ -139,7 +140,7 @@ class SolutionSpace:
         # return a random solution
         sol = []
         for f_id, dev_lst in self.subtask_dev.items():
-            sol.append(dev_lst[rand.randint(0, len(dev_lst)-1)])
+            sol.append(random.choice(dev_lst))
 
         return sol
 
@@ -153,19 +154,15 @@ class SolutionSpace:
         return True
 
 
-
-
-
 class HillClimbing:
     """"Hill climbing class"""
 
-    def __init__(self,init_node, get_neighbor, get_score):
-        self.init_node = init_node
+    def __init__(self,get_neighbor, get_score):
         self.get_neighbor = get_neighbor
         self.get_score = get_score
 
-    def climb(self):
-        current_node = self.init_node
+    def climb(self, init_node):
+        current_node = init_node
         current_score = self.get_score(current_node)[0]
         next_score = current_score
         next_node = current_node
@@ -190,7 +187,6 @@ class HillClimbing:
 
 class TasktoIoTmapingProblem(Annealer):
     """" Mapping tasks functions to a best combination of devices preferred by user"""
-    rand = random
     # rand.seed(58479)
     # Tmax = 10000
     # steps = 10000
@@ -205,7 +201,7 @@ class TasktoIoTmapingProblem(Annealer):
         """"select random neighbor"""
         neighbors = self.problem_model.get_neighbors(self.state)
         # print(neighbors)
-        self.state = neighbors[rand.randint(0, len(neighbors)-1)]
+        self.state = neighbors[random.randint(0, len(neighbors)-1)]
         # print(self.state)
 
     def energy(self):
@@ -294,17 +290,17 @@ class GA:
 
     def flipFunDev(self, indv, indpb):
         # select random func to flip its device
-        f_idx = rand.randint(0, len(indv)-1)
+        f_idx = random.randint(0, len(indv)-1)
         # get the available devices for that func
         f_devs_list = self.sol_space.subtask_dev[f_idx]
 
         if len(f_devs_list) > 1:
             # select dev_id other than the existing one in indv
-            d_idx = rand.choice(f_devs_list)
+            d_idx = random.choice(f_devs_list)
             i = 0
             while d_idx == indv[f_idx] or (d_idx not in f_devs_list):
                 i += 1
-                d_idx = rand.choice(f_devs_list)
+                d_idx = random.choice(f_devs_list)
 
             indv[f_idx] = d_idx
 
@@ -406,41 +402,49 @@ class GA:
         return (best_ind, best_ind.fitness.values)
 
 
-
 if __name__ == "__main__":
     # total space = total_devices^n_task_subfunc
     # number of devices
-    total_devices = 50
+    total_devices = 20
     # number of unique function in each devices
-    n_device_capab = 10
+    n_device_capab = 3
     # number of unique functions in each task.
-    n_task_subfunc = 5 # 10 # 15 
+    n_task_subfunc = 4 # 3 # 2
+    # char from A to P to represents a sub tasks (functions)
+    subtask_list = [chr(c) for c in range(65, 80)]
 
-    for i in range(30):
-        # char from A to P to represents a sub tasks (functions)
-        subtask_list = [chr(c) for c in range(65, 80)]
+    pref_model = JointProbModel(total_devices)
 
-        pref_model = JointProbModel(total_devices)
+    sol_space = SolutionSpace(total_devices, subtask_list, n_device_capab, n_task_subfunc)
 
-        sol_space = SolutionSpace(total_devices,subtask_list, n_device_capab, n_task_subfunc)
+    print(sol_space.get_subtask_dev())
+    print(sol_space.get_task())
 
-        print(sol_space.get_subtask_dev())
 
-        exh_search = ExhaustiveSearch(sol_space.get_subtask_dev()[0],pref_model.get_score).run()
 
-        task = sol_space.task
+    exh_search = ExhaustiveSearch(sol_space.get_subtask_dev()[0], pref_model.get_score).run()
 
-        init_cand = sol_space.get_init_candidate(task)
+    task = sol_space.task
+    print(exh_search[0], " ", exh_search[1])
 
-        hc = HillClimbing(init_cand, sol_space.get_neighbors, pref_model.get_score)
-        (h_cand, h_score) = hc.climb()
+    # define heuristic algorithms objects
+    ga = GA(sol_space, pref_model)
+    hc = HillClimbing(sol_space.get_neighbors, pref_model.get_score)
 
-        simulated_annealing = TasktoIoTmapingProblem(init_cand, sol_space, pref_model)
-        (s_cand, s_score) = simulated_annealing.anneal()
+    for n_task_subfunc in [4]:
+        print("cap , subt", n_device_capab, n_task_subfunc)
+        for i in range(30):
 
-        ga = GA(sol_space, pref_model)
+            init_cand = sol_space.get_rand_solution()
 
-        print(exh_search[0]," ", 1.0 - s_score, " ", h_score, ga.run(n = 1000, max_iteration = 1000) )
+            (h_cand, h_score) = hc.climb(init_cand)
+
+            simulated_annealing = TasktoIoTmapingProblem(init_cand, sol_space, pref_model)
+            (s_cand, s_score) = simulated_annealing.anneal()
+
+            ga_result = ga.run(n=1000, max_iteration=1000)
+
+            print(1.0 - s_score, " ", h_score, " ", ga_result[1]," ", s_cand, " ", h_cand, " ", ga_result[0][0])
 
 
 # print(row)
