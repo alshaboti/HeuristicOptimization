@@ -13,6 +13,19 @@ from deap import tools
 
 
 
+from pomegranate import BayesianNetwork
+#from pomegranate import *
+import numpy as np
+# Defining the Bayesian Model
+
+from pgmpy.models import BayesianModel
+from pgmpy.estimators import MaximumLikelihoodEstimator, BayesianEstimator
+import numpy as np
+import pandas as pd
+# https://github.com/jmschrei/pomegranate/blob/master/tutorials/B_Model_Tutorial_4b_Bayesian_Network_Structure_Learning.ipynb
+# https://github.com/pgmpy/pgmpy
+# another example: https://github.com/pgmpy/pgmpy_notebook/blob/master/notebooks/9.%20Learning%20Bayesian%20Networks%20from%20Data.ipynb
+
 
 #1000000 points, dim=10, value: 0:100
 # freq  {50: 0, 100:0,150:0,200.0: 1, 250.0: 241,300.0: 11022, 400.0: 400753, 450.0: 367548, 350.0: 117474,
@@ -33,12 +46,6 @@ class JointProbModel:
         self.att_bound = [0, 10]
         self.max_edge = math.sqrt(self.dims*pow(self.att_bound[1], 2))
         self.gen_devices()
-
-    def get_score(self, point):
-        d = self.get_min_dist(point)
-        edges = len(point) - 1
-        max_d = edges * self.max_edge
-        return 1-(d/max_d), # make it list
 
     def gen_devices(self):
         self.devices = [np.random.randint(self.att_bound[0], self.att_bound[1], self.dims)
@@ -65,14 +72,25 @@ class JointProbModel:
             total_dist += sum(Tcsr.toarray()[i])
         return total_dist
 
+    def get_score(self, point):
+        d = self.get_min_dist(point)
+        edges = len(point) - 1
+        max_d = edges * self.max_edge
+        return 1-(d/max_d), # make it list
+
 
 class SolutionSpace:
-
+    """"This class generate 2D array of devices (available_devices) where each row represnets a device capability.
+    also it generates 2D tasks (task) where each row represents a task subfunctions
+    the only condition is that all these tasks should have a devices that are capable to perf them"""
     def __init__(self, n_dev,subtask_list, n_dev_capab, n_sub_task):
+
         self.subtask_list = subtask_list
+
         self.n_devices = n_dev
         self.n_capab = n_dev_capab
         self.n_subtask = n_sub_task
+
         self.subtask_dev = {} # move these two vars here
         self.sol_space_size = 1
 
@@ -86,7 +104,7 @@ class SolutionSpace:
 
     # def get_init_candidate(self, task):
     #     # return list of devices index that have capab to
-    #     # exec task func, first indx for first func etc.
+    #     # exec task func, first index for first func etc.
     #     init_candidate = []
     #     for f in task:
     #         for d_number in range(len(self.available_devices)):
@@ -109,8 +127,10 @@ class SolutionSpace:
                     neighbor_list.append(new_neighbor)
         return neighbor_list
 
+
     def get_task(self):
-     # Return task that is feasible to be executed by avaliable devices
+     # Return a task to work with
+     # cond: A task is feasible to be executed by avaliable devices
         while True:
             task = random.sample(self.subtask_list,self.n_subtask)
             num_satisfied_tasks = 0
@@ -238,7 +258,6 @@ class ExhaustiveSearch:
 
         return (dict(itertools.izip(self.subt_dev_dict, x))
                 for x in itertools.product(*self.subt_dev_dict.itervalues()))
-
 
 
 class GA:
@@ -402,26 +421,68 @@ class GA:
         return (best_ind, best_ind.fitness.values)
 
 
-if __name__ == "__main__":
+class UserPreference:
+
+    def __init__(self, devices, tasks):
+        self.devices = devices
+        self.tasks = tasks
+        #self.pgmpy_test()
+        self.pomegranate_test()
+
+    def pgmpy_test(self):
+
+        raw_data = np.array([0] * 30 + [1] * 70)  # Representing heads by 0 and tails by 1
+        data = pd.DataFrame(raw_data, columns=['coin'])
+        print(data)
+        model = BayesianModel()
+        model.add_node('coin')
+
+        # Fitting the data to the model using Maximum Likelihood Estimator
+        model.fit(data, estimator=MaximumLikelihoodEstimator)
+        print(model.get_cpds('coin'))
+        print("####################")
+
+    def pomegranate_test(self):
+        #mydb = np.array([[1,1,1,1],[1,1,1,1],[0,1,1,1]])
+        # [[1,2,8]]*3+[[1,3,4]]*3
+        mydb = np.array([[1,1,0,0]]*3+[[1,0,1,1]]*2+[[1,1,0,1]]*1+[[0,0,1,1]]*1)
+        mymodel = BayesianNetwork.from_samples(mydb)
+
+        # print(mymodel.node_count())
+
+        #mymodel.plot()
+
+        print( mymodel.probability([[1,1,None,None]]) )
+        #print( mymodel.predict_proba([[1,None,1,None]]) )
+        #print( mymodel.predict_proba({}) )
+
+        # print(mymodel.to_json())
+
+
+def main():
+    up = UserPreference([],[])
+
     # total space = total_devices^n_task_subfunc
     # number of devices
-    total_devices = 20
+    total_devices = 5
     # number of unique function in each devices
     n_device_capab = 3
     # number of unique functions in each task.
-    n_task_subfunc = 4 # 3 # 2
+    n_task_subfunc = 3 # 3 # 2
     # char from A to P to represents a sub tasks (functions)
-    subtask_list = [chr(c) for c in range(65, 80)]
+    subtask_pool_list = range(10) #[chr(c) for c in range(65, 75)]
 
     pref_model = JointProbModel(total_devices)
 
-    sol_space = SolutionSpace(total_devices, subtask_list, n_device_capab, n_task_subfunc)
-
-    print(sol_space.get_subtask_dev())
-    print(sol_space.get_task())
+    sol_space = SolutionSpace(total_devices, subtask_pool_list, n_device_capab, n_task_subfunc)
 
 
+    print("--------------")
+    print("Devices_cababilities: \n ", sol_space.available_devices)
+    print("The task:",sol_space.task)
+    print("Compitable devices per task index: \n", sol_space.subtask_dev)
 
+    return
     exh_search = ExhaustiveSearch(sol_space.get_subtask_dev()[0], pref_model.get_score).run()
 
     task = sol_space.task
@@ -445,6 +506,33 @@ if __name__ == "__main__":
             ga_result = ga.run(n=1000, max_iteration=1000)
 
             print(1.0 - s_score, " ", h_score, " ", ga_result[1]," ", s_cand, " ", h_cand, " ", ga_result[0][0])
+
+
+#############################
+if __name__ == "__main__":
+        main()
+
+
+################### USER PREFERENCE ##############
+# ASSUMING USER HAS 4 DEVICES A,B,C,D
+# PREF1: A,B, RATHER THAN A,C.
+#
+# BUT IF D IS USED THEN USER PREFERE C.
+# A,C,D
+# DATABASE COUDL BE
+# AB,AB,AB,AB,AC,ACD,ACD,ACD,ABD,
+# OK OK OK OK NO  OK OK  OK NO
+# NO DENOTES NOICE;
+# WE CAN ADD ANY EXTRA DEVICES OTHER THAN ABCD BUT THEY SHOULD BE INDEPENDENT
+# TO SHOW THAT USER HAS NO PREFERENCE ON THEM LIKE
+# A,B,C,D,E,
+# AB,AB,ABE,ABE,ACE,ACD,ACD,ACDE,ABDE,
+#
+#
+
+
+
+
 
 
 # print(row)
