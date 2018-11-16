@@ -445,14 +445,18 @@ class UserPreference:
     def pomegranate_test(self):
         #mydb = np.array([[1,1,1,1],[1,1,1,1],[0,1,1,1]])
         # [[1,2,8]]*3+[[1,3,4]]*3
-        mydb = np.array([[1,1,0,0]]*3+[[1,0,1,1]]*2+[[1,1,0,1]]*1+[[0,0,1,1]]*1)
+        mydb = np.array([[1,1,0,0]]*3+[[1,0,1,1]]*2)#[[1,1,0,1]]*1+[[0,0,1,1]]*1)
         mymodel = BayesianNetwork.from_samples(mydb)
 
-        # print(mymodel.node_count())
+        print(mymodel.node_count())
+        print (mydb)
 
-        #mymodel.plot()
+        mymodel.plot()
 
-        print( mymodel.probability([[1,1,None,None]]) )
+# there is no need for none, as you always will provide with value for all devices either used 1 or not 0
+
+        #print( mymodel.probability([[1,1,None,None]]) )
+        #print(mymodel.probability([[1, None, 1, None]]))
         #print( mymodel.predict_proba([[1,None,1,None]]) )
         #print( mymodel.predict_proba({}) )
 

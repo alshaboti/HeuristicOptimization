@@ -2,10 +2,7 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="faee0b2c-a6b7-41a8-a214-4c87fc87863c" name="Default" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
       <change beforePath="$PROJECT_DIR$/HeuristicOptimization.py" afterPath="$PROJECT_DIR$/HeuristicOptimization.py" />
-      <change beforePath="$PROJECT_DIR$/test.py" afterPath="$PROJECT_DIR$/test.py" />
-      <change beforePath="$PROJECT_DIR$/test2.py" afterPath="$PROJECT_DIR$/test2.py" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="TRACKING_ENABLED" value="true" />
@@ -15,10 +12,24 @@
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
   <component name="CoverageDataManager">
-    <SUITE FILE_PATH="coverage/Heuristic_algorithms$HeuristicOptimization.coverage" NAME="HeuristicOptimization Coverage Results" MODIFIED="1542344001819" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/Heuristic_algorithms$HeuristicOptimization.coverage" NAME="HeuristicOptimization Coverage Results" MODIFIED="1542345261815" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/Heuristic_algorithms$test2.coverage" NAME="test2 Coverage Results" MODIFIED="1539647763801" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/Heuristic_algorithms$JointProbModel.coverage" NAME="JointProbModel Coverage Results" MODIFIED="1536907873371" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/Heuristic_algorithms$test.coverage" NAME="test Coverage Results" MODIFIED="1538603070322" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+  </component>
+  <component name="DatabaseView">
+    <option name="SHOW_INTERMEDIATE" value="true" />
+    <option name="GROUP_DATA_SOURCES" value="true" />
+    <option name="GROUP_SCHEMA" value="true" />
+    <option name="GROUP_CONTENTS" value="false" />
+    <option name="SORT_POSITIONED" value="false" />
+    <option name="SHOW_EMPTY_GROUPS" value="false" />
+    <option name="AUTO_SCROLL_FROM_SOURCE" value="false" />
+    <option name="HIDDEN_KINDS">
+      <set />
+    </option>
+    <expand />
+    <select />
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
@@ -49,17 +60,16 @@
       <file leaf-file-name="HeuristicOptimization.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/HeuristicOptimization.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="328">
-              <caret line="455" column="37" lean-forward="false" selection-start-line="455" selection-start-column="37" selection-end-line="455" selection-end-column="37" />
+            <state relative-caret-position="331">
+              <caret line="450" column="35" lean-forward="true" selection-start-line="450" selection-start-column="35" selection-end-line="450" selection-end-column="35" />
               <folding>
                 <element signature="e#0#18#0" expanded="true" />
-                <element signature="e#1225#2808#0" expanded="false" />
                 <element signature="e#2836#6382#0" expanded="false" />
                 <element signature="e#6409#7535#0" expanded="false" />
                 <element signature="e#7582#8361#0" expanded="false" />
                 <element signature="e#8392#9267#0" expanded="false" />
                 <element signature="e#9284#15158#0" expanded="false" />
-                <element signature="e#16350#17984#0" expanded="false" />
+                <element signature="e#16535#18169#0" expanded="false" />
               </folding>
             </state>
           </provider>
@@ -296,12 +306,12 @@
       <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.27749228" sideWeight="0.5125" order="7" side_tool="true" content_ui="tabs" />
       <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.3299075" sideWeight="0.49791667" order="11" side_tool="false" content_ui="tabs" />
       <window_info id="Python Console" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32878152" sideWeight="0.49786553" order="8" side_tool="false" content_ui="tabs" />
-      <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.32168552" sideWeight="0.4875" order="2" side_tool="false" content_ui="tabs" />
+      <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.32105264" sideWeight="0.4875" order="2" side_tool="false" content_ui="tabs" />
       <window_info id="Terminal" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32983193" sideWeight="0.49573106" order="9" side_tool="false" content_ui="tabs" />
       <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.14947917" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
       <window_info id="Docker" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="false" weight="0.33" sideWeight="0.5" order="10" side_tool="false" content_ui="tabs" />
-      <window_info id="Database" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
-      <window_info id="SciView" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.19270833" sideWeight="0.5" order="4" side_tool="false" content_ui="tabs" />
+      <window_info id="Database" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32977587" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
+      <window_info id="SciView" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.19263607" sideWeight="0.5" order="4" side_tool="false" content_ui="tabs" />
       <window_info id="Structure" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Favorites" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="2" side_tool="true" content_ui="tabs" />
       <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.3987667" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
@@ -385,13 +395,12 @@
           <caret line="35" column="0" lean-forward="true" selection-start-line="35" selection-start-column="0" selection-end-line="35" selection-end-column="0" />
           <folding>
             <element signature="e#0#18#0" expanded="true" />
-            <element signature="e#1225#2808#0" expanded="false" />
             <element signature="e#2836#6382#0" expanded="false" />
             <element signature="e#6409#7535#0" expanded="false" />
             <element signature="e#7582#8361#0" expanded="false" />
             <element signature="e#8392#9267#0" expanded="false" />
             <element signature="e#9284#15158#0" expanded="false" />
-            <element signature="e#16350#17984#0" expanded="false" />
+            <element signature="e#16535#18169#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -412,13 +421,12 @@
           <caret line="430" column="34" lean-forward="false" selection-start-line="430" selection-start-column="34" selection-end-line="430" selection-end-column="34" />
           <folding>
             <element signature="e#0#18#0" expanded="true" />
-            <element signature="e#1225#2808#0" expanded="false" />
             <element signature="e#2836#6382#0" expanded="false" />
             <element signature="e#6409#7535#0" expanded="false" />
             <element signature="e#7582#8361#0" expanded="false" />
             <element signature="e#8392#9267#0" expanded="false" />
             <element signature="e#9284#15158#0" expanded="false" />
-            <element signature="e#16350#17984#0" expanded="false" />
+            <element signature="e#16535#18169#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -459,13 +467,12 @@
           <caret line="430" column="34" lean-forward="true" selection-start-line="430" selection-start-column="34" selection-end-line="430" selection-end-column="34" />
           <folding>
             <element signature="e#0#18#0" expanded="true" />
-            <element signature="e#1225#2808#0" expanded="false" />
             <element signature="e#2836#6382#0" expanded="false" />
             <element signature="e#6409#7535#0" expanded="false" />
             <element signature="e#7582#8361#0" expanded="false" />
             <element signature="e#8392#9267#0" expanded="false" />
             <element signature="e#9284#15158#0" expanded="false" />
-            <element signature="e#16350#17984#0" expanded="false" />
+            <element signature="e#16535#18169#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -486,13 +493,12 @@
           <caret line="65" column="25" lean-forward="true" selection-start-line="65" selection-start-column="25" selection-end-line="65" selection-end-column="25" />
           <folding>
             <element signature="e#0#18#0" expanded="true" />
-            <element signature="e#1225#2808#0" expanded="false" />
             <element signature="e#2836#6382#0" expanded="false" />
             <element signature="e#6409#7535#0" expanded="false" />
             <element signature="e#7582#8361#0" expanded="false" />
             <element signature="e#8392#9267#0" expanded="false" />
             <element signature="e#9284#15158#0" expanded="false" />
-            <element signature="e#16350#17984#0" expanded="false" />
+            <element signature="e#16535#18169#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -591,17 +597,16 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/HeuristicOptimization.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="328">
-          <caret line="455" column="37" lean-forward="false" selection-start-line="455" selection-start-column="37" selection-end-line="455" selection-end-column="37" />
+        <state relative-caret-position="331">
+          <caret line="450" column="35" lean-forward="true" selection-start-line="450" selection-start-column="35" selection-end-line="450" selection-end-column="35" />
           <folding>
             <element signature="e#0#18#0" expanded="true" />
-            <element signature="e#1225#2808#0" expanded="false" />
             <element signature="e#2836#6382#0" expanded="false" />
             <element signature="e#6409#7535#0" expanded="false" />
             <element signature="e#7582#8361#0" expanded="false" />
             <element signature="e#8392#9267#0" expanded="false" />
             <element signature="e#9284#15158#0" expanded="false" />
-            <element signature="e#16350#17984#0" expanded="false" />
+            <element signature="e#16535#18169#0" expanded="false" />
           </folding>
         </state>
       </provider>
