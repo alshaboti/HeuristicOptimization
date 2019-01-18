@@ -11,8 +11,6 @@ from deap import base
 from deap import creator
 from deap import tools
 
-
-
 from pomegranate import BayesianNetwork
 #from pomegranate import *
 import numpy as np
@@ -451,7 +449,7 @@ class UserPreference:
         print(mymodel.node_count())
         print (mydb)
 
-        mymodel.plot()
+       # mymodel.plot()
 
 # there is no need for none, as you always will provide with value for all devices either used 1 or not 0
 
