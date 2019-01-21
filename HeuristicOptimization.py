@@ -35,8 +35,8 @@ import pandas as pd
 class JointProbModel:
     """" A Probability model for user preferences"""
 
-    def __init__(self, n):
-        self.n_devices = n
+    def __init__(self, n_dev):
+        self.n_devices = n_dev
         self.devices = []
         self.pair_dist = np.zeros((self.n_devices, self.n_devices), dtype=int)
         self.dims = 10  # device attributes
@@ -49,11 +49,12 @@ class JointProbModel:
         self.devices = [np.random.randint(self.att_bound[0], self.att_bound[1], self.dims)
                         for i in range(0, self.n_devices)]
         for i in range(0, self.n_devices):
-            for j in range(i,self.n_devices):
+            self.pair_dist[i][i] = 0 
+            for j in range(i+1,self.n_devices):
                 self.pair_dist[i][j] = euclidean(self.devices[i], self.devices[j]).astype(int)
                 self.pair_dist[j][i] = self.pair_dist[i][j]
 
-    def get_min_dist(self, dev_idx_list):
+    def _get_min_dist(self, dev_idx_list):
         list_len = len(dev_idx_list)
         dev_dist = np.ones([list_len,list_len])*float("inf")
         i = -1
@@ -71,19 +72,21 @@ class JointProbModel:
         return total_dist
 
     def get_score(self, point):
-        d = self.get_min_dist(point)
+        d = self._get_min_dist(point)
         edges = len(point) - 1
         max_d = edges * self.max_edge
         return 1-(d/max_d), # make it list
 
 
 class SolutionSpace:
-    """"This class generate 2D array of devices (available_devices) where each row represnets a device capability.
-    also it generates 2D tasks (task) where each row represents a task subfunctions
-    the only condition is that all these tasks should have a devices that are capable to perf them"""
-    def __init__(self, n_dev,subtask_list, n_dev_capab, n_sub_task):
+    """"This class generate 2D array of devices (available_devices) 
+    where each row represnets a device capability.
+    also it generates 2D tasks (task) where each row represents a task 
+    subfunctions the only condition is that all these tasks should have 
+    a devices that are capable to perf them"""
+    def __init__(self, n_dev,subtask_pool_list, n_dev_capab, n_sub_task):
 
-        self.subtask_list = subtask_list
+        self.subtask_pool_list = subtask_pool_list
 
         self.n_devices = n_dev
         self.n_capab = n_dev_capab
@@ -97,20 +100,10 @@ class SolutionSpace:
 
     def gen_devices(self):
         # return 2D array each row is a device capab/func
-        self.available_devices = np.array([random.sample(self.subtask_list, self.n_capab) for i in range(self.n_devices)])
+        self.available_devices = np.array([random.sample(self.subtask_pool_list, self.n_capab) for i in range(self.n_devices)])
         self.task = self.get_task()
 
-    # def get_init_candidate(self, task):
-    #     # return list of devices index that have capab to
-    #     # exec task func, first index for first func etc.
-    #     init_candidate = []
-    #     for f in task:
-    #         for d_number in range(len(self.available_devices)):
-    #             if np.isin(self.available_devices[d_number], f).any():
-    #                 init_candidate.append(d_number)
-    #                 break
-    #     return init_candidate
-
+    
     def get_neighbors(self, cand):
         neighbor_list = []
         # for each sub task
@@ -130,7 +123,7 @@ class SolutionSpace:
      # Return a task to work with
      # cond: A task is feasible to be executed by avaliable devices
         while True:
-            task = random.sample(self.subtask_list,self.n_subtask)
+            task = random.sample(self.subtask_pool_list,self.n_subtask)
             num_satisfied_tasks = 0
             for t in task:
                 if np.isin(self.available_devices, t).any(axis=0).any():  # any row and col
@@ -428,8 +421,8 @@ class UserPreference:
         self.pomegranate_test()
 
     def pgmpy_test(self):
-
-        raw_data = np.array([0] * 30 + [1] * 70)  # Representing heads by 0 and tails by 1
+        # Representing heads by 0 and tails by 1
+        raw_data = np.array([0] * 30 + [1] * 70) 
         data = pd.DataFrame(raw_data, columns=['coin'])
         print(data)
         model = BayesianModel()
@@ -443,7 +436,8 @@ class UserPreference:
     def pomegranate_test(self):
         #mydb = np.array([[1,1,1,1],[1,1,1,1],[0,1,1,1]])
         # [[1,2,8]]*3+[[1,3,4]]*3
-        mydb = np.array([[1,1,0,0]]*3+[[1,0,1,1]]*2)#[[1,1,0,1]]*1+[[0,0,1,1]]*1)
+        mydb = np.array([[1,1,0,0]]*3+[[1,0,1,1]]*2)
+        #[[1,1,0,1]]*1+[[0,0,1,1]]*1)
         mymodel = BayesianNetwork.from_samples(mydb)
 
         print(mymodel.node_count())
@@ -451,7 +445,8 @@ class UserPreference:
 
        # mymodel.plot()
 
-# there is no need for none, as you always will provide with value for all devices either used 1 or not 0
+# there is no need for none, as you always will provide 
+# # with value for all devices either used 1 or not 0
 
         #print( mymodel.probability([[1,1,None,None]]) )
         #print(mymodel.probability([[1, None, 1, None]]))
@@ -462,21 +457,22 @@ class UserPreference:
 
 
 def main():
-    up = UserPreference([],[])
+   # user_pref = UserPreference([],[])
 
-    # total space = total_devices^n_task_subfunc
+    # total space = n_devices^n_task_subfunc
     # number of devices
-    total_devices = 5
+    n_devices = 5
     # number of unique function in each devices
     n_device_capab = 3
     # number of unique functions in each task.
     n_task_subfunc = 3 # 3 # 2
-    # char from A to P to represents a sub tasks (functions)
-    subtask_pool_list = range(10) #[chr(c) for c in range(65, 75)]
+    n_subtask_pool = 10 
+    subtask_pool_list = range(n_subtask_pool) #[chr(c) for c in range(65, 75)]
 
-    pref_model = JointProbModel(total_devices)
+    pref_model = JointProbModel(n_devices)
 
-    sol_space = SolutionSpace(total_devices, subtask_pool_list, n_device_capab, n_task_subfunc)
+    sol_space = SolutionSpace(n_devices, subtask_pool_list, \
+    n_device_capab, n_task_subfunc)
 
 
     print("--------------")
@@ -536,40 +532,3 @@ if __name__ == "__main__":
 
 
 
-
-# print(row)
-# print(col)
-# print(dist)
-# print(dev_dist)
-# #print(csr_matrix((dist, (row, col)), shape=(k, k)))
-# x=csr_matrix(dev_dist)
-# Tcsr = minimum_spanning_tree(x)
-# print(Tcsr.toarray())
-# total_dist = 0
-# for i in range(0, len(Tcsr.toarray())):
-#   total_dist += sum(Tcsr.toarray()[i])
-# print(total_dist)
-    # def gen_model(self):
-    #   dist = []
-    #   for i in range(0, pow(10,6)):
-    #     sel_dev = self.select_dev_rand()
-    #     print("\n Slected dev: ", sel_dev)
-    #     # print(self.get_min_dist(sel_dev))
-    #     d = self.get_min_dist(sel_dev)
-    #     dist.append(round(d / 50) * 50)
-    #
-    #   d = np.array(dist)
-    #   # An "interface" to matplotlib.axes.Axes.hist() method
-    #   n, bins, patches = plt.hist(x=d, bins='auto', color='#0504aa',
-    #                               alpha=0.7, rwidth=0.85)
-    #   plt.grid(axis='y', alpha=0.75)
-    #   plt.xlabel('Value')
-    #   plt.ylabel('Frequency')
-    #   plt.title('My Very Own Histogram')
-    #   plt.text(23, 45, r'$\mu=15, b=3$')
-    #   maxfreq = n.max()
-    #   # Set a clean upper y-axis limit.
-    #   plt.ylim(ymax=np.ceil(maxfreq / 10) * 10 if maxfreq % 10 else maxfreq + 10)
-    #   plt.show()
-    #   freq = Counter(dist)
-    #   return freq
