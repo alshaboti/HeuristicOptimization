@@ -12,6 +12,7 @@ from deap import creator
 from deap import tools
 
 from pomegranate import BayesianNetwork
+from pomegranate import DiscreteDistribution, ConditionalProbabilityTable, State
 # from pomegranate import *
 import numpy as np
 # Defining the Bayesian Model
@@ -493,6 +494,42 @@ class UserPreference:
 
 # print(mymodel.to_json())
 
+# from https://github.com/jmschrei/pomegranate/blob/master/examples/bayesnet_asia.ipynb
+class User_model:
+    def get_BN(self):
+        door_lock = DiscreteDistribution({'d1': 0.7, 'd2': 0.3})
+
+        clock_alarm = DiscreteDistribution( { 'a1' : 0.8, 'a2' : 0.2} )
+
+        light = ConditionalProbabilityTable(
+            [[ 'd1', 'a1', 'l1', 0.96 ],
+             ['d1', 'a1', 'l2', 0.04 ],
+             [ 'd1', 'a2', 'l1', 0.89 ],
+             [ 'd1', 'a2', 'l2', 0.11 ],
+             [ 'd2', 'a1', 'l1', 0.96 ],
+             [ 'd2', 'a1', 'l2', 0.04 ],
+             [ 'd2', 'a2', 'l1', 0.89 ],
+             [ 'd2', 'a2', 'l2', 0.11 ]], [door_lock, clock_alarm])
+
+        coffee_maker = ConditionalProbabilityTable(
+            [[ 'a1', 'c1', 0.92 ],
+             [ 'a1', 'c2', 0.08 ],
+             [ 'a2', 'c1', 0.03 ],
+             [ 'a2', 'c2', 0.97 ]], [clock_alarm] )
+
+        s_door_lock = State(door_lock, name="door_lock")
+        s_clock_alarm = State(clock_alarm, name="clock_alarm")
+        s_light = State(light, name="light")
+        s_coffee_maker = State(coffee_maker, name="coffee_maker")
+        network = BayesianNetwork("User_pref")
+        network.add_nodes(s_door_lock, s_clock_alarm, s_light, s_coffee_maker)
+
+        network.add_edge(s_door_lock,s_light)
+        network.add_edge(s_clock_alarm,s_coffee_maker)
+        network.add_edge(s_clock_alarm,s_light)
+        network.bake()
+        return network
+
 
 def main():
     # user_pref = UserPreference([],[])
@@ -506,6 +543,13 @@ def main():
     n_task_subfunc = 10  # 3 # 2
     n_subtask_pool = 30
 
+    # using BN as user preference model
+    user_model = User_model()
+    network = user_model.get_BN()
+
+    print(network.probability(['d1', 'a1', None, 'c2']))
+    print(network.predict_proba({}))
+    ################################
     subtask_pool_list = range(n_subtask_pool)  # [chr(c) for c in range(65, 75)]
     sol_space = SolutionSpace(n_devices, subtask_pool_list, \
                               n_device_capab, n_task_subfunc)
@@ -513,6 +557,8 @@ def main():
     # select a set of devices as
     rand_user_pref = sol_space.get_rand_solution()
     pref_model = JointProbModel(n_devices, sol_space.subtask_dev, rand_user_pref)
+
+
 
     print("--------------")
     print("Devices_cababilities: \n ", sol_space.available_devices)
@@ -539,8 +585,11 @@ def main():
             print("Result ",1.0 - s_score, " ", h_score, " ", ga_result[1], " ", s_cand, " ", h_cand, " ", ga_result)
 
 
+
+
 #############################
 if __name__ == "__main__":
+
     main()
 
 ################### USER PREFERENCE ##############

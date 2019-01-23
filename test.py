@@ -102,9 +102,46 @@ def pomegranate_User_pref():
     network.bake()
     return network
 
+# from https://github.com/jmschrei/pomegranate/blob/master/examples/bayesnet_asia.ipynb
+class User_model:
+    def get_BN(self):
+        door_lock = DiscreteDistribution({'d1': 0.7, 'd2': 0.3})
 
-network = pomegranate_User_pref()
-network.plot()
-print(network.probability(['False', 'False', 'False', 'False', 'False', 'False', 'True', 'True']))
+        clock_alarm = DiscreteDistribution( { 'a1' : 0.8, 'a2' : 0.2} )
+
+        light = ConditionalProbabilityTable(
+            [[ 'd1', 'a1', 'l1', 0.96 ],
+             ['d1', 'a1', 'l2', 0.04 ],
+             [ 'd1', 'a2', 'l1', 0.89 ],
+             [ 'd1', 'a2', 'l2', 0.11 ],
+             [ 'd2', 'a1', 'l1', 0.96 ],
+             [ 'd2', 'a1', 'l2', 0.04 ],
+             [ 'd2', 'a2', 'l1', 0.89 ],
+             [ 'd2', 'a2', 'l2', 0.11 ]], [door_lock, clock_alarm])
+
+        coffee_maker = ConditionalProbabilityTable(
+            [[ 'a1', 'c1', 0.92 ],
+             [ 'a1', 'c2', 0.08 ],
+             [ 'a2', 'c1', 0.03 ],
+             [ 'a2', 'c2', 0.97 ]], [clock_alarm] )
+
+        s_door_lock = State(door_lock, name="door_lock")
+        s_clock_alarm = State(clock_alarm, name="clock_alarm")
+        s_light = State(light, name="light")
+        s_coffee_maker = State(coffee_maker, name="coffee_maker")
+        network = BayesianNetwork("User_pref")
+        network.add_nodes(s_door_lock, s_clock_alarm, s_light, s_coffee_maker)
+
+        network.add_edge(s_door_lock,s_light)
+        network.add_edge(s_clock_alarm,s_coffee_maker)
+        network.add_edge(s_clock_alarm,s_light)
+        network.bake()
+        return network
+
+user_model = User_model()
+network = user_model.get_BN()
+
+print(network.probability(['d1',  None, 'l1','c2']))
+print(network.probability(['d1',  None, 'l2','c2']))
 
 #pgmpy_test2()

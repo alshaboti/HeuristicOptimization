@@ -10,59 +10,63 @@ import itertools
 from deap import base
 from deap import creator
 from deap import tools
+
 from pomegranate import BayesianNetwork
-from pomegranate import *
+from pomegranate import DiscreteDistribution, ConditionalProbabilityTable, State
+# from pomegranate import *
 import numpy as np
+# Defining the Bayesian Model
+
+from pgmpy.models import BayesianModel
+from pgmpy.estimators import MaximumLikelihoodEstimator, BayesianEstimator
+import numpy as np
+import pandas as pd
 
 
-#1000000 points, dim=10, value: 0:100
+# https://github.com/jmschrei/pomegranate/blob/master/tutorials/B_Model_Tutorial_4b_Bayesian_Network_Structure_Learning.ipynb
+# https://github.com/pgmpy/pgmpy
+# another example: https://github.com/pgmpy/pgmpy_notebook/blob/master/notebooks/9.%20Learning%20Bayesian%20Networks%20from%20Data.ipynb
+
+
+# 1000000 points, dim=10, value: 0:100
 # freq  {50: 0, 100:0,150:0,200.0: 1, 250.0: 241,300.0: 11022, 400.0: 400753, 450.0: 367548, 350.0: 117474,
 #  500.0: 97764,  550.0: 5130,  600.0: 67, 650:0, 700:0, 800:0,850:0,900:0,950:0}
 # rand = random
 # rand.seed(4759843)
 # np_rand = np.random
 # np_rand.seed(94759843)
+class JointProbModel:
+    """" A Probability model for user preferences"""
 
-
-class SolutionSpace:
-
-    def __init__(self, n_dev,subtask_list, n_dev_capab, n_sub_task):
-        self.subtask_list = subtask_list
+    def __init__(self, n_dev, alter_dev_subtask_list, user_pref_cand):
         self.n_devices = n_dev
-        self.n_capab = n_dev_capab
-        self.n_subtask = n_sub_task
-        self.subtask_dev = {} # move these two vars here
-        self.sol_space_size = 1
-
-        self.gen_devices()
-        self.get_subtask_dev()
-
-#        self.n_devices = n
         self.devices = []
         self.pair_dist = np.zeros((self.n_devices, self.n_devices), dtype=int)
         self.dims = 10  # device attributes
         # attribute value range
-        self.att_bound = [0, 10]
-        self.max_edge = math.sqrt(self.dims*pow(self.att_bound[1], 2))
+        self.att_bound = [0, 30]
+        self.max_edge = math.sqrt(self.dims * pow(self.att_bound[1], 2))
         self.gen_devices()
 
-    def get_score(self, point):
-        d = self.get_min_dist(point)
-        edges = len(point) - 1
-        max_d = edges * self.max_edge
-        return 1-(d/max_d), # make it list
+        self.alter_dev_subtask_list = alter_dev_subtask_list
+        self.user_pref_cand = user_pref_cand
+        self._max_dist_to_user_pref = self._get_max_dist_to_user_pref()
+        #print("MAX dist to UP: ",self._max_dist_to_user_pref)
 
     def gen_devices(self):
         self.devices = [np.random.randint(self.att_bound[0], self.att_bound[1], self.dims)
                         for i in range(0, self.n_devices)]
         for i in range(0, self.n_devices):
-            for j in range(i,self.n_devices):
+            self.pair_dist[i][i] = 0
+            for j in range(i + 1, self.n_devices):
                 self.pair_dist[i][j] = euclidean(self.devices[i], self.devices[j]).astype(int)
                 self.pair_dist[j][i] = self.pair_dist[i][j]
+        #print("pair distance:")
+        #print(self.pair_dist)
 
-    def get_min_dist(self, dev_idx_list):
+    def _get_min_dist(self, dev_idx_list):
         list_len = len(dev_idx_list)
-        dev_dist = np.ones([list_len,list_len])*float("inf")
+        dev_dist = np.ones([list_len, list_len]) * float("inf")
         i = -1
         for di in dev_idx_list:
             i += 1
@@ -77,26 +81,68 @@ class SolutionSpace:
             total_dist += sum(Tcsr.toarray()[i])
         return total_dist
 
+    # score based on the ecleadian dist btween cand devices attributes.
+    def get_score_rand(self, point):
+        d = self._get_min_dist(point)
+        edges = len(point) - 1
+        max_d = edges * self.max_edge
+        return 1 - (d / max_d),  # make it list
+
+    # score based on the ecleadian dist btw user pref and current candidate
+    def get_score(self, point):
+        dist = 0
+        for i in range(len(point)):
+            dist += self.pair_dist[point[i],self.user_pref_cand[i]]
+        #print("dist is :", dist, " max dist is :", self._max_dist_to_user_pref)
+
+        if self._max_dist_to_user_pref == 0:
+            # only one solution avaliable then to avoid 0/0
+            return 1.0
+        score = dist / self._max_dist_to_user_pref
+
+        return (1-score),
+
+    def _get_max_dist_to_user_pref(self):
+        max_dist = [ 0 ] * len(self.user_pref_cand)
+        for dev_idx in range(len(self.user_pref_cand)):
+            #print("dev ", self.user_pref_cand[dev_idx], " for subtask in task index ", dev_idx)
+            for alt_dev_idx in range(len(self.alter_dev_subtask_list[dev_idx])):
+                d = self.pair_dist[self.user_pref_cand[dev_idx],self.alter_dev_subtask_list[dev_idx][alt_dev_idx]]
+             #   print("dist btw ", self.user_pref_cand[dev_idx], self.alter_dev_subtask_list[dev_idx][alt_dev_idx], " is ",d )
+              #  print(d)
+                if d >  max_dist[dev_idx]:
+                    max_dist[dev_idx] = d
+            # print("max: ", max_dist[dev_idx])
+            # print("------------------")
+        return (sum(max_dist))
 
 
+class SolutionSpace:
+    """"This class generate 2D array of devices (available_devices)
+    where each row represnets a device capability.
+    also it generates 2D tasks (task) where each row represents a task
+    subfunctions the only condition is that all these tasks should have
+    a devices that are capable to perf them"""
 
+    def __init__(self, n_dev, subtask_pool_list, n_dev_capab, n_sub_task):
 
+        self.subtask_pool_list = subtask_pool_list
+
+        self.n_devices = n_dev
+        self.n_capab = n_dev_capab
+        self.n_subtask = n_sub_task
+
+        self.subtask_dev = {}
+        self.sol_space_size = 1
+
+        self.gen_devices()
+        self.get_subtask_dev()
 
     def gen_devices(self):
         # return 2D array each row is a device capab/func
-        self.available_devices = np.array([random.sample(self.subtask_list, self.n_capab) for i in range(self.n_devices)])
+        self.available_devices = np.array(
+            [i//2 for i in range(self.n_devices)])
         self.task = self.get_task()
-
-    # def get_init_candidate(self, task):
-    #     # return list of devices index that have capab to
-    #     # exec task func, first indx for first func etc.
-    #     init_candidate = []
-    #     for f in task:
-    #         for d_number in range(len(self.available_devices)):
-    #             if np.isin(self.available_devices[d_number], f).any():
-    #                 init_candidate.append(d_number)
-    #                 break
-    #     return init_candidate
 
     def get_neighbors(self, cand):
         neighbor_list = []
@@ -113,9 +159,10 @@ class SolutionSpace:
         return neighbor_list
 
     def get_task(self):
-     # Return task that is feasible to be executed by avaliable devices
+        # Return a task to work with
+        # cond: A task is feasible to be executed by avaliable devices
         while True:
-            task = random.sample(self.subtask_list,self.n_subtask)
+            task = random.sample(self.subtask_pool_list, self.n_subtask)
             num_satisfied_tasks = 0
             for t in task:
                 if np.isin(self.available_devices, t).any(axis=0).any():  # any row and col
@@ -127,7 +174,7 @@ class SolutionSpace:
         # return a dict: key is fun idx, value is a list of dev idx that are cabable to execute the func.
 
         for f_idx in range(len(self.task)):
-            self.subtask_dev[f_idx]=[]
+            self.subtask_dev[f_idx] = []
 
         for f_idx, dev_list in self.subtask_dev.items():
             for d_number in range(len(self.available_devices)):
@@ -156,46 +203,17 @@ class SolutionSpace:
 
         return True
 
-    def get_history(self):
-       combs = []
-       for num_dev in range(4,5):
-            els = [list(x) for x in itertools.permutations(range(self.n_devices), num_dev)]
-
-            combs.extend(els)
-       
-       best1 = self.get_rand_solution()
-       print(best1)
-       combs.extend([best1 for i in range(15)])
-       print(combs)
-
-       mydb = np.array(combs)
-       mymodel = BayesianNetwork.from_samples(mydb)
- 
-
-       # print(mymodel.node_count())
-       # mymodel.plot()
-
-       #print( mymodel.probability([[1,1,1]]) )
-       #print( mymodel.probability([[None,1,1]]) )
-       #print( mymodel.predict_proba({}) )
-       print("Best solutions are")
-       print( mymodel.probability([best1]) )
-       print("Others")
-       print( mymodel.probability([self.get_rand_solution() for i in range(4)]) )
-
-       # print(mymodel.to_json())
-
-
 
 class HillClimbing:
     """"Hill climbing class"""
 
-    def __init__(self,get_neighbor, get_score):
+    def __init__(self, get_neighbor, get_score):
         self.get_neighbor = get_neighbor
         self.get_score = get_score
 
     def climb(self, init_node):
         current_node = init_node
+
         current_score = self.get_score(current_node)[0]
         next_score = current_score
         next_node = current_node
@@ -205,10 +223,13 @@ class HillClimbing:
             # go through all nieghbors to get the max score (next_score)
             for neighbor_point in neighbors_list:
                 neigh_score = self.get_score(neighbor_point)[0]
-               # print("neighbor score:", neigh_score)
-                if(neigh_score > next_score):
+                # print("neighbor score:", neigh_score)
+                if (neigh_score > next_score):
                     next_node = neighbor_point
                     next_score = neigh_score
+
+            print("HC: next score", next_score, self.get_score(next_node)[1])
+
             # if all neighbor score less than the current then end
             if next_score <= current_score:
                 return current_node, current_score
@@ -218,34 +239,36 @@ class HillClimbing:
                 current_node = next_node
 
 
+
 class TasktoIoTmapingProblem(Annealer):
     """" Mapping tasks functions to a best combination of devices preferred by user"""
+
     # rand.seed(58479)
     # Tmax = 10000
     # steps = 10000
     # updates = 1000
 
-    def __init__(self,init_state, problem_model, pref_model):
+    def __init__(self, init_state, problem_model,get_score ):
         Annealer.__init__(self, init_state)
         self.problem_model = problem_model
-        self.pref_model = pref_model
+        self.get_score = get_score
 
     def move(self):
         """"select random neighbor"""
         neighbors = self.problem_model.get_neighbors(self.state)
         # print(neighbors)
-        self.state = neighbors[random.randint(0, len(neighbors)-1)]
+        self.state = neighbors[random.randint(0, len(neighbors) - 1)]
         # print(self.state)
 
     def energy(self):
         """" calculate the spanning tree distance """
-        e = self.pref_model.get_score(self.state)[0]
+        e = self.get_score(self.state)[0]
         # print(self.state, e)
-        return 1-e
+        return 1 - e
 
 
-class ExhaustiveSearch:
-    """" Exhaustive Search class"""
+class BruteForceSearch:
+    """" Brute Force Search class"""
 
     def __init__(self, subt_dev_dict, get_score):
         self.subt_dev_dict = subt_dev_dict
@@ -256,12 +279,13 @@ class ExhaustiveSearch:
         best_cand = []
         for fun_dev_cand in self.cprod():
             tmp_cand = list(fun_dev_cand.values())
-            tmp_score =  self.get_score(tmp_cand)[0]
+            tmp_score = self.get_score(tmp_cand)[0]
             if tmp_score > max_score:
                 max_score = tmp_score
                 best_cand = tmp_cand
+                if max_score == 1.0:
+                    return max_score, best_cand
         return max_score, best_cand
-
 
     def cprod(self):
         """Generate cartesian product"""
@@ -273,12 +297,12 @@ class ExhaustiveSearch:
                 for x in itertools.product(*self.subt_dev_dict.itervalues()))
 
 
-
 class GA:
     """ GA algorithm """
-    def __init__(self, sol_space, user_pref):
+
+    def __init__(self, sol_space, get_score):
         self.sol_space = sol_space
-        self.user_pref = user_pref
+        self.get_score = get_score
 
         creator.create("FitnessMax", base.Fitness, weights=(1.0,))
         creator.create("Individual", list, fitness=creator.FitnessMax)
@@ -301,12 +325,11 @@ class GA:
         # define the population to be a list of individuals
         self.toolbox.register("population", tools.initRepeat, list, self.toolbox.individual)
 
-
         # ----------
         # Operator registration
         # ----------
         # register the goal / fitness function
-        self.toolbox.register("evaluate", user_pref.get_score)
+        self.toolbox.register("evaluate", self.get_score)
 
         # register the crossover operator
         self.toolbox.register("mate", tools.cxTwoPoint)
@@ -323,7 +346,7 @@ class GA:
 
     def flipFunDev(self, indv, indpb):
         # select random func to flip its device
-        f_idx = random.randint(0, len(indv)-1)
+        f_idx = random.randint(0, len(indv) - 1)
         # get the available devices for that func
         f_devs_list = self.sol_space.subtask_dev[f_idx]
 
@@ -339,7 +362,7 @@ class GA:
 
         return indv
 
-    def run(self, n=100, max_iteration = 100):
+    def run(self, n=100, max_iteration=100):
         # random.seed(64)
 
         # create an initial population of 300 individuals (where
@@ -386,7 +409,6 @@ class GA:
 
                 # cross two individuals with probability CXPB
                 if random.random() < CXPB:
-
                     self.toolbox.mate(child1, child2)
 
                     # fitness values of the children
@@ -401,7 +423,6 @@ class GA:
                     self.toolbox.mutate(mutant)
 
                     del mutant.fitness.values
-
 
             # Evaluate the individuals with an invalid fitness
             invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
@@ -435,88 +456,129 @@ class GA:
         return (best_ind, best_ind.fitness.values)
 
 
-if __name__ == "__main__":
-    # total space = total_devices^n_task_subfunc
-    # number of devices
-    total_devices = 20
-    # number of unique function in each devices
-    n_device_capab = 3
-    # number of unique functions in each task.
-    n_task_subfunc = 4 # 3 # 2
-    # char from A to P to represents a sub tasks (functions)
-    subtask_list = [chr(c) for c in range(65, 80)]
 
-#    pref_model = JointProbModel(total_devices)
+# from https://github.com/jmschrei/pomegranate/blob/master/examples/bayesnet_asia.ipynb
+class User_model:
+    def __init__(self):
+        self.network = self.get_bayesnet()
+        self.devices = ['d1','d2','a1','a2','l1','l2','c1','c2',]
 
-    sol_space = SolutionSpace(total_devices, subtask_list, n_device_capab, n_task_subfunc)
+    def get_bayesnet(self):
+        door_lock = DiscreteDistribution({'d1': 0.7, 'd2': 0.3})
 
-    print(sol_space.get_subtask_dev())
-    print(sol_space.get_task())
+        clock_alarm = DiscreteDistribution( { 'a1' : 0.8, 'a2' : 0.2} )
 
-    sol_space.get_history()
+        light = ConditionalProbabilityTable(
+            [[ 'd1', 'a1', 'l1', 0.96 ],
+             ['d1', 'a1', 'l2', 0.04 ],
+             [ 'd1', 'a2', 'l1', 0.89 ],
+             [ 'd1', 'a2', 'l2', 0.11 ],
+             [ 'd2', 'a1', 'l1', 0.96 ],
+             [ 'd2', 'a1', 'l2', 0.04 ],
+             [ 'd2', 'a2', 'l1', 0.89 ],
+             [ 'd2', 'a2', 'l2', 0.11 ]], [door_lock, clock_alarm])
+
+        coffee_maker = ConditionalProbabilityTable(
+            [[ 'a1', 'c1', 0.92 ],
+             [ 'a1', 'c2', 0.08 ],
+             [ 'a2', 'c1', 0.03 ],
+             [ 'a2', 'c2', 0.97 ]], [clock_alarm] )
+
+        s_door_lock = State(door_lock, name="door_lock")
+        s_clock_alarm = State(clock_alarm, name="clock_alarm")
+        s_light = State(light, name="light")
+        s_coffee_maker = State(coffee_maker, name="coffee_maker")
+        network = BayesianNetwork("User_pref")
+        network.add_nodes(s_door_lock, s_clock_alarm, s_light, s_coffee_maker)
+
+        network.add_edge(s_door_lock,s_light)
+        network.add_edge(s_clock_alarm,s_coffee_maker)
+        network.add_edge(s_clock_alarm,s_light)
+        network.bake()
+        return network
+
+    def get_score(self, cand_list):
+        can_dev = []
+        for i in range(8): #to do make it general
+            if i%2 == 0:
+                if i in cand_list:
+                    can_dev.append(self.devices[i])
+                elif i+1 in cand_list:
+                    can_dev.append(self.devices[i+1])
+                else:
+                    can_dev.append(None)
+        return self.network.probability(can_dev),can_dev
+
+# you may not need to use none, as you always will provide
+# # with value for all devices either used 1 or not 0
+
+# print( mymodel.probability([[1,1,None,None]]) )
+# print(mymodel.probability([[1, None, 1, None]]))
+# print( mymodel.predict_proba([[1,None,1,None]]) )
+# print( mymodel.predict_proba({}) )
+
+# print(mymodel.to_json())
+
+
+def main():
+    # user_pref = UserPreference([],[])
+
+    # total space = n_devices^n_task_subfunc
+    # number of devices, e.g two of each door, light,alarm, coffee maker
+    n_devices = 8
+    # number of unique function(selected from the subtask_pool_list in each devices
+    n_device_capab = 1
+    # number of unique functions in each task e.g. may use three devices
+    n_task_subfunc = 3
+    # e.g. 0 for doors, 1 for alarm, 2 for light, 3 for coffee maker
+    n_subtask_pool = 4
+
+    # using BN as user preference model
+    user_model = User_model()
+    print(user_model.get_score(['d1', 'a1', None, 'c2']))
+    #print(network.predict_proba({}))
+
+    ################################
+    subtask_pool_list = range(n_subtask_pool)
+    sol_space = SolutionSpace(n_devices, subtask_pool_list, \
+                              n_device_capab, n_task_subfunc)
+
+    # select a set of devices as
+    rand_user_pref = sol_space.get_rand_solution()
+#    pref_model = JointProbModel(n_devices, sol_space.subtask_dev, rand_user_pref)
 
 
 
-'''
+    print("--------------")
+    print("Devices cababilities: \n ", sol_space.available_devices)
+    print("The task:", sol_space.task)
+    print("Compitable devices per task index: \n", sol_space.subtask_dev)
+    print("User pref: ",rand_user_pref)
 
-    exh_search = ExhaustiveSearch(sol_space.get_subtask_dev()[0], sol_space.get_score).run()
+    # exh_search = BruteForceSearch(sol_space.get_subtask_dev()[0], pref_model.get_score).run()
+    # print("Brute Force Search: ", exh_search[0], " ", exh_search[1])
 
-    task = sol_space.task
-    print(exh_search[0], " ", exh_search[1])
 
     # define heuristic algorithms objects
-    ga = GA(sol_space, sol_space)
-    hc = HillClimbing(sol_space.get_neighbors, sol_space.get_score)
+    ga = GA(sol_space, user_model.get_score)
+    hc = HillClimbing(sol_space.get_neighbors, user_model.get_score)
 
-    for n_task_subfunc in [2]:
-        print("cap , subt", n_device_capab, n_task_subfunc)
-        for i in range(1):
-
+    for i in range(1):
             init_cand = sol_space.get_rand_solution()
-
             (h_cand, h_score) = hc.climb(init_cand)
+            print(h_cand, h_score)
 
-            simulated_annealing = TasktoIoTmapingProblem(init_cand, sol_space, sol_space)
+            simulated_annealing = TasktoIoTmapingProblem(init_cand, sol_space, user_model.get_score)
             (s_cand, s_score) = simulated_annealing.anneal()
 
-            ga_result = ga.run(n=10, max_iteration=100)
+            ga_result = ga.run(n=1000, max_iteration=1000)
 
-            print(1.0 - s_score, " ", h_score, " ", ga_result[1][0]," ", s_cand, " ", h_cand, " ", ga_result[0])
+            print("Result ",1.0 - s_score, " ", h_score, " ", ga_result[1], " ", s_cand, " ", h_cand, " ", ga_result)
 
-'''
-# print(row)
-# print(col)
-# print(dist)
-# print(dev_dist)
-# #print(csr_matrix((dist, (row, col)), shape=(k, k)))
-# x=csr_matrix(dev_dist)
-# Tcsr = minimum_spanning_tree(x)
-# print(Tcsr.toarray())
-# total_dist = 0
-# for i in range(0, len(Tcsr.toarray())):
-#   total_dist += sum(Tcsr.toarray()[i])
-# print(total_dist)
-    # def gen_model(self):
-    #   dist = []
-    #   for i in range(0, pow(10,6)):
-    #     sel_dev = self.select_dev_rand()
-    #     print("\n Slected dev: ", sel_dev)
-    #     # print(self.get_min_dist(sel_dev))
-    #     d = self.get_min_dist(sel_dev)
-    #     dist.append(round(d / 50) * 50)
-    #
-    #   d = np.array(dist)
-    #   # An "interface" to matplotlib.axes.Axes.hist() method
-    #   n, bins, patches = plt.hist(x=d, bins='auto', color='#0504aa',
-    #                               alpha=0.7, rwidth=0.85)
-    #   plt.grid(axis='y', alpha=0.75)
-    #   plt.xlabel('Value')
-    #   plt.ylabel('Frequency')
-    #   plt.title('My Very Own Histogram')
-    #   plt.text(23, 45, r'$\mu=15, b=3$')
-    #   maxfreq = n.max()
-    #   # Set a clean upper y-axis limit.
-    #   plt.ylim(ymax=np.ceil(maxfreq / 10) * 10 if maxfreq % 10 else maxfreq + 10)
-    #   plt.show()
-    #   freq = Counter(dist)
-    #   return freq
+
+
+
+#############################
+if __name__ == "__main__":
+
+    main()
