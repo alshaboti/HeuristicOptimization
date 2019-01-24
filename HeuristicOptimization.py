@@ -285,9 +285,9 @@ class BruteForceSearch:
     def cprod(self):
         """Generate cartesian product"""
 
-        if sys.version_info.major > 2:
+        if sys.version_info.major > 2: # python3
             return (dict(zip(self.subt_dev_dict, x)) for x in itertools.product(*self.subt_dev_dict.values()))
-
+        # python2
         return (dict(itertools.izip(self.subt_dev_dict, x))
                 for x in itertools.product(*self.subt_dev_dict.itervalues()))
 
