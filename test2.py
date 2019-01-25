@@ -107,7 +107,7 @@ class User_model:
             condProbTable = self.getCondProbTable(len(parent_lst)+1, n_alters)
             # save node with its prob
             node_prob_dict[str(node)] = condProbTable
-            #print("Conditional Probability Table: \n", condProbTable)
+            print("Conditional Probability Table: node, parent", node," - ", parent_lst, " \n", condProbTable)
 
         nodes_list = list(range(n_nodes))
         node_with_parent_lst = child_parent.keys()
@@ -119,10 +119,10 @@ class User_model:
             p /= p.sum()
             dist = {}
             for j in range(n_alters):
-                dist[j] = p[j]
+                dist[str(j)] = p[j]
             # save node with its prob
                 node_prob_dict[str(node)] = dist
-            #print("Root node: ", node, " dist: ", dist)
+            print("Root node: ", node, " dist: ", dist)
 
         # 2.2 Create nodes linked to its parent, parent should be processed first.
         # all node state saved to be added to the BN later
@@ -171,5 +171,7 @@ class User_model:
         return network
 
 user_model = User_model()
-network = user_model.get_BN(n_nodes = 8, n_alters = 2, n_edges=5)
+network = user_model.get_BN(n_nodes = 4, n_alters = 2, n_edges=3)
+network.bake()
+print(network.probability(['0',None,None,'1']))
 network.plot()
