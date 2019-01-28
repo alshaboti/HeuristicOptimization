@@ -40,6 +40,7 @@ import pandas as pd
 # rand.seed(4759843)
 # np_rand = np.random
 # np_rand.seed(94759843)
+
 class JointProbModel:
     """" A Probability model for user preferences"""
 
@@ -106,7 +107,7 @@ class JointProbModel:
         score = dist / self._max_dist_to_user_pref
 
         return (1-score),
-
+    # this one use a predefined user_prefer_cand and compare the current cand with it.
     def _get_max_dist_to_user_pref(self):
         max_dist = [ 0 ] * len(self.user_pref_cand)
         for dev_idx in range(len(self.user_pref_cand)):
@@ -122,40 +123,42 @@ class JointProbModel:
         return (sum(max_dist))
 
 
-class SolutionSpace:
-    """"This class generate 2D array of devices (available_devices)
-    where each row represnets a device capability.
-    also it generates 2D tasks (task) where each row represents a task
-    subfunctions the only condition is that all these tasks should have
-    a devices that are capable to perf them"""
+class ProblemDomain:
+    """"This class generate an array of devices (available_devices)
+    [0 0 1 1 2 2 3 3] where each type repeated by number of alternatives, the value
+    represents the function they can do, so capabilities only one for now.
+    e.g. device number 2,3 can do task number 1 """
 
-    def __init__(self, n_dev, subtask_pool_list, n_dev_capab, n_sub_task):
+    def __init__(self, n_dev_types,n_dev_alter, subtask_pool_list, n_dev_capab, n_sub_task):
 
         self.subtask_pool_list = subtask_pool_list
-
-        self.n_devices = n_dev
+        self.n_dev_types = n_dev_types
+        self.n_dev_alt = n_dev_alter
+        self.n_total_devices = n_dev_types * n_dev_alter
         self.n_capab = n_dev_capab
         self.n_subtask = n_sub_task
 
         self.subtask_dev = {}
-        self.sol_space_size = 1
-
-        self.gen_devices()
-        self.get_subtask_dev()
-
-    def gen_devices(self):
-        # return 2D array each row is a device capab/func
-        self.available_devices = np.array(
-            [i//2 for i in range(self.n_devices)])
+        self.all_available_devices = self.gen_devices()
         self.task = self.get_task()
 
-    def get_neighbors(self, cand):
+        self.prob_domain_size =self.get_subtask_dev()[1]
+
+    def gen_devices(self):
+        # return an array with a list of all devices
+        # index is the device, value is the function it can do (capabilities).
+        # e.g. [0 0 1 1 2 2 3 3], four type of devices each two have same capabilities
+        # d0,d1 can do function 0, d4,d5 can do function 2
+        return np.array([i//self.n_dev_alt for i in range(self.n_total_devices)])
+
+    def get_all_neighbors(self, cand):
+        # Get all other cand that can do the task but differ from current cand by one device.
         neighbor_list = []
         # for each sub task
         for sub_task_idx in range(len(self.task)):
             sub_task = self.task[sub_task_idx]
             # check which devices can exec each subTask.
-            dev_idxs = np.where(np.isin(self.available_devices, sub_task))[0]
+            dev_idxs = np.where(np.isin(self.all_available_devices, sub_task))[0]
             for alt_dev_idx in dev_idxs:
                 if alt_dev_idx != cand[sub_task_idx]:
                     new_neighbor = cand.copy()
@@ -170,7 +173,7 @@ class SolutionSpace:
             task = random.sample(self.subtask_pool_list, self.n_subtask)
             num_satisfied_tasks = 0
             for t in task:
-                if np.isin(self.available_devices, t).any(axis=0).any():  # any row and col
+                if np.isin(self.all_available_devices, t).any(axis=0).any():  # any row and col
                     num_satisfied_tasks += 1
             if num_satisfied_tasks == self.n_subtask:
                 return task
@@ -182,14 +185,15 @@ class SolutionSpace:
             self.subtask_dev[f_idx] = []
 
         for f_idx, dev_list in self.subtask_dev.items():
-            for d_number in range(len(self.available_devices)):
-                if np.isin(self.available_devices[d_number], self.task[f_idx]).any():
+            for d_number in range(len(self.all_available_devices)):
+                if np.isin(self.all_available_devices[d_number], self.task[f_idx]).any():
                     self.subtask_dev[f_idx].append(d_number)
 
+        self.prob_domain_size =1
         for f_id, dev_lst in self.subtask_dev.items():
-            self.sol_space_size *= len(dev_lst)
+            self.prob_domain_size *= len(dev_lst)
 
-        return self.subtask_dev, self.sol_space_size
+        return self.subtask_dev, self.prob_domain_size
 
     def get_rand_solution(self):
         # return a random solution
@@ -244,7 +248,6 @@ class HillClimbing:
                 current_node = next_node
 
 
-
 class TasktoIoTmapingProblem(Annealer):
     """" Mapping tasks functions to a best combination of devices preferred by user"""
 
@@ -260,7 +263,7 @@ class TasktoIoTmapingProblem(Annealer):
 
     def move(self):
         """"select random neighbor"""
-        neighbors = self.problem_model.get_neighbors(self.state)
+        neighbors = self.problem_model.get_all_neighbors(self.state)
         # print(neighbors)
         self.state = neighbors[random.randint(0, len(neighbors) - 1)]
         # print(self.state)
@@ -305,8 +308,8 @@ class BruteForceSearch:
 class GA:
     """ GA algorithm """
 
-    def __init__(self, sol_space, get_score):
-        self.sol_space = sol_space
+    def __init__(self, prob_domain, get_score):
+        self.prob_domain = prob_domain
         self.get_score = get_score
 
         creator.create("FitnessMax", base.Fitness, weights=(1.0,))
@@ -325,7 +328,7 @@ class GA:
         #                         define 'individual' to be an individual
         #                         consisting of 100 'attr_bool' elements ('genes')
         self.toolbox.register("individual", tools.initIterate, creator.Individual,
-                              sol_space.get_rand_solution)
+                              prob_domain.get_rand_solution)
 
         # define the population to be a list of individuals
         self.toolbox.register("population", tools.initRepeat, list, self.toolbox.individual)
@@ -353,7 +356,7 @@ class GA:
         # select random func to flip its device
         f_idx = random.randint(0, len(indv) - 1)
         # get the available devices for that func
-        f_devs_list = self.sol_space.subtask_dev[f_idx]
+        f_devs_list = self.prob_domain.subtask_dev[f_idx]
 
         if len(f_devs_list) > 1:
             # select dev_id other than the existing one in indv
@@ -457,9 +460,8 @@ class GA:
 
         best_ind = tools.selBest(pop, 1)[0]
         # print("Best individual is %s, %s" % (best_ind, best_ind.fitness.values))
-        # print(self.sol_space.subtask_dev)
+        # print(self.prob_domain.subtask_dev)
         return (best_ind, best_ind.fitness.values)
-
 
 
 # from https://github.com/jmschrei/pomegranate/blob/master/examples/bayesnet_asia.ipynb
@@ -503,7 +505,7 @@ class Static_User_model:
         return network
 
     def get_score(self, cand_list):
-        print(cand_list)
+        print(" get_Score: ",cand_list)
         can_dev = []
         for i in range(8): #to do make it general
             if i%2 == 0:
@@ -525,9 +527,6 @@ class Static_User_model:
 # print( mymodel.predict_proba({}) )
 
 # print(mymodel.to_json())
-
-
-
 
 class RandomDAG:
     def __init__(self):
@@ -578,6 +577,14 @@ class RandomDAG:
 
 # from https://github.com/jmschrei/pomegranate/blob/master/examples/bayesnet_asia.ipynb
 class User_model:
+    def __init__(self, n_nodes, n_alters, n_edges, all_avail_dev):
+
+        self.n_nodes = n_nodes
+        self.n_alters = n_alters
+        self.n_edges = n_edges
+        self.all_devices = all_avail_dev
+        self.network = self.get_BN()
+        self.network.bake()
 
     def getCondProbTable(self, n_var, n_att):
         var = range(n_var)
@@ -611,10 +618,10 @@ class User_model:
     # n_alter: number of devices from same type
     # n_types: number devices types (e.g. door_lock, camera, etc)
     # n_alter: number of devices from same type
-    def get_BN(self, n_nodes, n_alters, n_edges):
+    def get_BN(self):
 
         # 1 Build BN DAG structure
-        DAG, child_parent = RandomDAG().random_dag(n_nodes, n_edges)
+        DAG, child_parent = RandomDAG().random_dag(self.n_nodes, self.n_edges)
 
         for a, bs in DAG.edge.items():
             for b in bs.keys():
@@ -627,21 +634,21 @@ class User_model:
         # these nodes have parents, generate CPT for them
         for node, parent_lst in child_parent.items():
             # parents + this node condProbTable
-            condProbTable = self.getCondProbTable(len(parent_lst)+1, n_alters)
+            condProbTable = self.getCondProbTable(len(parent_lst)+1, self.n_alters)
             # save node with its prob
             node_prob_dict[str(node)] = condProbTable
             print("Conditional Probability Table: node, parent", node," - ", parent_lst, " \n", condProbTable)
 
-        nodes_list = list(range(n_nodes))
+        nodes_list = list(range(self.n_nodes))
         node_with_parent_lst = child_parent.keys()
         node_without_parents = [e for e in nodes_list if e not in node_with_parent_lst]
 
         # these nodes have no parents so create random prob for them only no conditional here
         for node in node_without_parents:
-            p = np.random.random(n_alters)
+            p = np.random.random(self.n_alters)
             p /= p.sum()
             dist = {}
-            for j in range(n_alters):
+            for j in range(self.n_alters):
                 dist[str(j)] = p[j]
             # save node with its prob
                 node_prob_dict[str(node)] = dist
@@ -681,86 +688,93 @@ class User_model:
             print("States created for all nodes!")
 
         # 3 Create BN and add the nodes_state
-        network = BayesianNetwork("User_pref")
+            self.network = BayesianNetwork("User_pref")
         for node, state in nodes_state.items():
-            network.add_node(state)
-        print("Network has ", network.node_count() , " nodes")
+            self.network.add_node(state)
+        print("Network has ", self.network.node_count() , " nodes")
 
         # 4 Link nodes with edges using nodes_state and DAG.edge
         for a, bs in DAG.edge.items():
             for b in bs.keys():
-                network.add_edge(nodes_state[a], nodes_state[b])
-        print("Network has ", network.edge_count(), " edges")
-        return network
+                self.network.add_edge(nodes_state[a], nodes_state[b])
+        print("Network has ", self.network.edge_count(), " edges")
+        return self.network
 
-def main():
-    # user_pref = UserPreference([],[])
-
-    # total space = n_devices^n_task_subfunc
-    # number of devices, e.g two of each door, light,alarm, coffee maker
-    n_alternatives = 2
-    n_nodes = 4
-    # devices will be device1_alter1 device1_alter2 device2_alter1 device2_alter2 ... etc
-    # so when devices 1,4 selected it means device2_alter2 from BN
-    n_devices = n_nodes * n_alternatives
-    # number of unique function(selected from the subtask_pool_list in each devices
-    n_device_capab = 1
-    # number of unique functions in each task e.g. may use three devices
-    n_task_subfunc = 3
-    # e.g. 0 for doors, 1 for alarm, 2 for light, 3 for coffee maker
-    n_subtask_pool = 4
-
-    # using BN as user preference model (static)
-    user_model = Static_User_model()
-    print(user_model.get_score(['d1', 'a1', None, 'c2']))
-    #print(network.predict_proba({}))
-
-    # use senthesis BN as user preference model
-
-    user_model = User_model().get_BN(n_nodes=n_devices/2, n_alters= 2, n_edges=)
-
-
-    ################################
-    subtask_pool_list = range(n_subtask_pool)
-    sol_space = SolutionSpace(n_devices, subtask_pool_list, \
-                              n_device_capab, n_task_subfunc)
-
-    # select a set of devices as
-    rand_user_pref = sol_space.get_rand_solution()
-#    pref_model = JointProbModel(n_devices, sol_space.subtask_dev, rand_user_pref)
-
-
-
-    print("--------------")
-    print("Devices cababilities: \n ", sol_space.available_devices)
-    print("The task:", sol_space.task)
-    print("Compitable devices per task index: \n", sol_space.subtask_dev)
-    print("User pref: ",rand_user_pref)
-
-    # exh_search = BruteForceSearch(sol_space.get_subtask_dev()[0], pref_model.get_score).run()
-    # print("Brute Force Search: ", exh_search[0], " ", exh_search[1])
-
-
-    # define heuristic algorithms objects
-    ga = GA(sol_space, user_model.get_score)
-    hc = HillClimbing(sol_space.get_neighbors, user_model.get_score)
-
-    for i in range(1):
-            init_cand = sol_space.get_rand_solution()
-            (h_cand, h_score) = hc.climb(init_cand)
-            print(h_cand, h_score)
-
-            simulated_annealing = TasktoIoTmapingProblem(init_cand, sol_space, user_model.get_score)
-            (s_cand, s_score) = simulated_annealing.anneal()
-
-            ga_result = ga.run(n=1000, max_iteration=1000)
-
-            print("Result ",1.0 - s_score, " ", h_score, " ", ga_result[1], " ", s_cand, " ", h_cand, " ", ga_result)
-
-
+    def get_score(self, cand_list):
+        print(cand_list)
+        can_dev = []
+        for i in range(self.n_nodes*self.n_alters):
+            if i % self.n_alters == 0:
+                for j in range(self.n_alters):
+                    if i+j in cand_list:
+                        can_dev.append(self.all_devices[i+j])
+                    else:
+                        can_dev.append(None)
+        print(can_dev)
+        return self.network.probability(can_dev),can_dev
 
 
 #############################
 if __name__ == "__main__":
 
-    main()
+    # user_pref = UserPreference([],[])
+
+    # total space = n_devices^n_task_subfunc
+    # number of devices type e.g. door locks, lights, coffee makers
+    n_dev_types = 4
+    # number of devices for each type, e.g two of each door, light,alarm, coffee maker
+    n_dev_alter = 2
+
+    # devices will be device1_alter1 device1_alter2 device2_alter1 device2_alter2 ... etc
+    # so when devices 4 selected it means device2_alter2 from BN
+
+    # number of unique function(selected from the subtask_pool_list in each devices
+    n_device_capab = 1
+    # number of unique functions in each task e.g. may use three devices
+    n_task_subfunc = 3
+    # e.g. 0 for doors, 1 for alarm, 2 for light, 3 for coffee maker
+    subtask_pool_list = set(range(4))
+
+    prob_domain = ProblemDomain(n_dev_types =n_dev_types, n_dev_alter = n_dev_alter, \
+                                subtask_pool_list=subtask_pool_list, \
+                                n_dev_capab=n_device_capab, n_sub_task= n_task_subfunc)
+
+
+
+    # using BN as user preference model (static)
+    # user_model = Static_User_model()
+    # print(user_model.get_score(['d1', 'a1', None, 'c2']))
+    #print(network.predict_proba({}))
+
+    # use senthesis BN as user preference model
+    user_model = User_model(n_nodes=n_dev_types, n_alters= n_dev_alter, n_edges=n_dev_types-1, \
+                            all_avail_dev = prob_domain.all_available_devices)
+    ################################
+
+
+    print("--------------")
+    print("Devices cababilities: \n ", prob_domain.all_available_devices)
+    print("The task:", prob_domain.task)
+    print("Compitable devices per task index: \n", prob_domain.subtask_dev)
+    #print("User pref: ",rand_user_pref)
+
+    # exh_search = BruteForceSearch(prob_domain.get_subtask_dev()[0], pref_model.get_score).run()
+    # print("Brute Force Search: ", exh_search[0], " ", exh_search[1])
+
+
+    # define heuristic algorithms objects
+    #ga = GA(prob_domain, user_model.get_score)
+    hc = HillClimbing(prob_domain.get_all_neighbors, user_model.get_score)
+
+    for i in range(1):
+            init_cand = prob_domain.get_rand_solution()
+            (h_cand, h_score) = hc.climb(init_cand)
+            print(h_cand, h_score)
+
+     #       simulated_annealing = TasktoIoTmapingProblem(init_cand, prob_domain, user_model.get_score)
+      #      (s_cand, s_score) = simulated_annealing.anneal()
+
+       #     ga_result = ga.run(n=1000, max_iteration=1000)
+
+        #    print("Result ",1.0 - s_score, " ", h_score, " ", ga_result[1], " ", s_cand, " ", h_cand, " ", ga_result)
+
