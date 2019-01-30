@@ -145,3 +145,4 @@ print(network.probability(['d1',  None, 'l1','c2']))
 print(network.probability(['d1',  None, 'l2','c2']))
 
 #pgmpy_test2()
+

@@ -6,6 +6,7 @@ import random
 from simanneal import Annealer
 import sys, math
 import itertools
+from timeit import default_timer as timer
 # GA
 from deap import base
 from deap import creator
@@ -15,7 +16,7 @@ from pomegranate import BayesianNetwork
 from pomegranate import DiscreteDistribution, ConditionalProbabilityTable, State
 
 import networkx as nx
-from random import randint
+import  random
 import  itertools
 import numpy as np
 # from pomegranate import *
@@ -27,7 +28,9 @@ from pgmpy.estimators import MaximumLikelihoodEstimator, BayesianEstimator
 import numpy as np
 import pandas as pd
 
-
+# np.random.seed(5)
+# random.seed(5)
+randint = random.randint
 # https://github.com/jmschrei/pomegranate/blob/master/tutorials/B_Model_Tutorial_4b_Bayesian_Network_Structure_Learning.ipynb
 # https://github.com/pgmpy/pgmpy
 # another example: https://github.com/pgmpy/pgmpy_notebook/blob/master/notebooks/9.%20Learning%20Bayesian%20Networks%20from%20Data.ipynb
@@ -169,6 +172,7 @@ class ProblemDomain:
     def get_task(self):
         # Return a task to work with
         # cond: A task is feasible to be executed by avaliable devices
+
         while True:
             task = random.sample(self.subtask_pool_list, self.n_subtask)
             num_satisfied_tasks = 0
@@ -177,6 +181,7 @@ class ProblemDomain:
                     num_satisfied_tasks += 1
             if num_satisfied_tasks == self.n_subtask:
                 return task
+
 
     def get_subtask_dev(self):
         # return a dict: key is fun idx, value is a list of dev idx that are cabable to execute the func.
@@ -237,7 +242,7 @@ class HillClimbing:
                     next_node = neighbor_point
                     next_score = neigh_score
 
-            print("HC: next score", next_score, self.get_score(next_node)[1])
+            #print("HC: next score", next_score, self.get_score(next_node)[1])
 
             # if all neighbor score less than the current then end
             if next_score <= current_score:
@@ -247,7 +252,7 @@ class HillClimbing:
                 current_score = next_score
                 current_node = next_node
 
-
+#https://github.com/perrygeo/simanneal
 class TasktoIoTmapingProblem(Annealer):
     """" Mapping tasks functions to a best combination of devices preferred by user"""
 
@@ -260,6 +265,8 @@ class TasktoIoTmapingProblem(Annealer):
         Annealer.__init__(self, init_state)
         self.problem_model = problem_model
         self.get_score = get_score
+        # if you don't want to see any update in the output
+        self.updates=0
 
     def move(self):
         """"select random neighbor"""
@@ -505,7 +512,7 @@ class Static_User_model:
         return network
 
     def get_score(self, cand_list):
-        print(" get_Score: ",cand_list)
+        #print(" get_Score: ",cand_list)
         can_dev = []
         for i in range(8): #to do make it general
             if i%2 == 0:
@@ -515,7 +522,7 @@ class Static_User_model:
                     can_dev.append(self.devices[i+1])
                 else:
                     can_dev.append(None)
-        print(can_dev)
+        #print(can_dev)
         return self.network.probability(can_dev),can_dev
 
 # you may not need to use none, as you always will provide
@@ -529,25 +536,28 @@ class Static_User_model:
 # print(mymodel.to_json())
 
 class RandomDAG:
-    def __init__(self):
+    def __init__(self, n_nodes, n_edges):
+
+        self.n_nodes = n_nodes
+        self.n_edges = n_edges
+
+        if n_edges > n_nodes * (n_nodes - 1):
+            self.n_edges = n_nodes * (n_nodes - 1)
+
         self.randDAG = nx.DiGraph()
 
     # connected graph req (n-1) edges at least
     # DAG can't be more than n(n-1) edges
     # https://ipython.org/ipython-doc/3/parallel/dag_dependencies.html
-    def random_dag(self, n_nodes, n_edges):
-        self.n_nodes = n_nodes
-        self.n_edges = n_edges
-        child_parent = {}
 
-        if n_edges > n_nodes * (n_nodes - 1):
-            self.n_edges = n_nodes * (n_nodes - 1)
+    def random_dag(self):
 
         """Generate a random Directed Acyclic Graph (DAG) with a given number of nodes and edges."""
-        self.randDAG = nx.DiGraph()
         # add nodes, labeled 0...nodes:
         for i in range(self.n_nodes):
             self.randDAG.add_node(i)
+
+        child_parent = {}
 
         # to avoid infinit loop, need to have better solution
         round = 1000
@@ -582,22 +592,24 @@ class User_model:
         self.n_nodes = n_nodes
         self.n_alters = n_alters
         self.n_edges = n_edges
+        assert (n_edges < (n_nodes-1)*(n_nodes-2)/2), " Can't create DAG with this number of edges!"
         self.all_devices = all_avail_dev
+        self.alters_list = self.get_alter_list(n_alters)
         self.network = self.get_BN()
         self.network.bake()
+
+    def get_alter_list(self, n_alter):
+        " used in getCondProb and get_score"
+        return [str(c) for c in range(n_alter)]
 
     def getCondProbTable(self, n_var, n_att):
         var = range(n_var)
         var_att_dict = {}
         for i in var:
-            var_att_dict[i] = [ str(c) for c in range(n_att)]
+            var_att_dict[i] = self.alters_list
             #list(range(n_att))
-        if sys.version_info.major > 2:  # python3
-            permutation = list(dict(zip(var_att_dict, x)) for x in itertools.product(*var_att_dict.values()))
-        else:
-            # python2
-            permutation = list(dict(itertools.izip(var_att_dict, x))
-                               for x in itertools.product(*var_att_dict.itervalues()))
+
+        permutation = list(dict(zip(var_att_dict, x)) for x in itertools.product(*var_att_dict.values()))
 
         #print(permutation, ", ", len(permutation), "\n")
         condProbTable = []
@@ -621,12 +633,14 @@ class User_model:
     def get_BN(self):
 
         # 1 Build BN DAG structure
-        DAG, child_parent = RandomDAG().random_dag(self.n_nodes, self.n_edges)
+        rand_dag = RandomDAG(self.n_nodes, self.n_edges)
+        DAG, child_parent =rand_dag.random_dag()
 
-        for a, bs in DAG.edge.items():
-            for b in bs.keys():
-                print(a, "->", b)
-        print("Key node, value: parents",child_parent)
+
+        # for a, bs in DAG.edge.items():
+        #     for b in bs.keys():
+        #         print(a, "->", b)
+      #  print("Key node, value: parents",child_parent)
 
         # 2 Build BN probability model
         # 2.1 get probabilityDist or conditional prob table
@@ -637,7 +651,7 @@ class User_model:
             condProbTable = self.getCondProbTable(len(parent_lst)+1, self.n_alters)
             # save node with its prob
             node_prob_dict[str(node)] = condProbTable
-            print("Conditional Probability Table: node, parent", node," - ", parent_lst, " \n", condProbTable)
+#            print("Conditional Probability Table: node, parent", node," - ", parent_lst, " \n", condProbTable)
 
         nodes_list = list(range(self.n_nodes))
         node_with_parent_lst = child_parent.keys()
@@ -652,7 +666,7 @@ class User_model:
                 dist[str(j)] = p[j]
             # save node with its prob
                 node_prob_dict[str(node)] = dist
-            print("Root node: ", node, " dist: ", dist)
+            #print("Root node: ", node, " dist: ", dist)
 
         # 2.2 Create nodes linked to its parent, parent should be processed first.
         # all node state saved to be added to the BN later
@@ -684,46 +698,48 @@ class User_model:
                     nodes_state[node] = State(node_dist, name = str(node))
                     # remove from the node_list
                     nodes_list.remove(node)
-        if not nodes_list:
-            print("States created for all nodes!")
 
         # 3 Create BN and add the nodes_state
             self.network = BayesianNetwork("User_pref")
         for node, state in nodes_state.items():
             self.network.add_node(state)
-        print("Network has ", self.network.node_count() , " nodes")
+#        print("Network has ", self.network.node_count() , " nodes")
 
         # 4 Link nodes with edges using nodes_state and DAG.edge
         for a, bs in DAG.edge.items():
             for b in bs.keys():
                 self.network.add_edge(nodes_state[a], nodes_state[b])
-        print("Network has ", self.network.edge_count(), " edges")
+ #       print("Network has ", self.network.edge_count(), " edges")
         return self.network
 
     def get_score(self, cand_list):
-        print(cand_list)
+
         can_dev = []
-        for i in range(self.n_nodes*self.n_alters):
-            if i % self.n_alters == 0:
-                for j in range(self.n_alters):
-                    if i+j in cand_list:
-                        can_dev.append(self.all_devices[i+j])
-                    else:
-                        can_dev.append(None)
-        print(can_dev)
-        return self.network.probability(can_dev),can_dev
+
+        for node_id in range(self.n_nodes):
+            is_added = False
+            for node_alter_id in range(self.n_alters):
+                if node_id * self.n_alters + node_alter_id in cand_list:
+                    can_dev.append(self.alters_list[node_alter_id])
+                    is_added = True
+            if not is_added:
+                can_dev.append(None)
+
+
+        score = self.network.probability(can_dev)
+
+        return score,can_dev
 
 
 #############################
-if __name__ == "__main__":
-
+def main():
     # user_pref = UserPreference([],[])
 
     # total space = n_devices^n_task_subfunc
     # number of devices type e.g. door locks, lights, coffee makers
-    n_dev_types = 4
+    n_dev_types = 30
     # number of devices for each type, e.g two of each door, light,alarm, coffee maker
-    n_dev_alter = 2
+    n_dev_alter = 5
 
     # devices will be device1_alter1 device1_alter2 device2_alter1 device2_alter2 ... etc
     # so when devices 4 selected it means device2_alter2 from BN
@@ -731,13 +747,10 @@ if __name__ == "__main__":
     # number of unique function(selected from the subtask_pool_list in each devices
     n_device_capab = 1
     # number of unique functions in each task e.g. may use three devices
-    n_task_subfunc = 3
+    n_task_subfunc = 3 #int(n_dev_types/2)
     # e.g. 0 for doors, 1 for alarm, 2 for light, 3 for coffee maker
-    subtask_pool_list = set(range(4))
+    subtask_pool_list = set(range(n_dev_types))
 
-    prob_domain = ProblemDomain(n_dev_types =n_dev_types, n_dev_alter = n_dev_alter, \
-                                subtask_pool_list=subtask_pool_list, \
-                                n_dev_capab=n_device_capab, n_sub_task= n_task_subfunc)
 
 
 
@@ -746,35 +759,59 @@ if __name__ == "__main__":
     # print(user_model.get_score(['d1', 'a1', None, 'c2']))
     #print(network.predict_proba({}))
 
-    # use senthesis BN as user preference model
-    user_model = User_model(n_nodes=n_dev_types, n_alters= n_dev_alter, n_edges=n_dev_types-1, \
-                            all_avail_dev = prob_domain.all_available_devices)
-    ################################
 
 
-    print("--------------")
-    print("Devices cababilities: \n ", prob_domain.all_available_devices)
-    print("The task:", prob_domain.task)
-    print("Compitable devices per task index: \n", prob_domain.subtask_dev)
-    #print("User pref: ",rand_user_pref)
-
-    # exh_search = BruteForceSearch(prob_domain.get_subtask_dev()[0], pref_model.get_score).run()
-    # print("Brute Force Search: ", exh_search[0], " ", exh_search[1])
 
 
-    # define heuristic algorithms objects
-    #ga = GA(prob_domain, user_model.get_score)
-    hc = HillClimbing(prob_domain.get_all_neighbors, user_model.get_score)
+    for n_task_subfunc in range(3,10):
 
-    for i in range(1):
+        prob_domain = ProblemDomain(n_dev_types =n_dev_types, n_dev_alter = n_dev_alter, \
+                                    subtask_pool_list=subtask_pool_list, \
+                                    n_dev_capab=n_device_capab, n_sub_task= n_task_subfunc)
+
+        # use senthesis BN as user preference model
+        # max edges: (n_dev_types-1)*(n_dev_types-2)/4)
+        user_model = User_model(n_nodes=n_dev_types, n_alters=n_dev_alter, \
+                                n_edges=randint(int(n_dev_types / 4), n_dev_types), \
+                                all_avail_dev=prob_domain.all_available_devices)
+
+        ################################
+
+        #print("joint prob \n", user_model.network.probability([None, '1', '1', '0']))
+
+        #exit(0)
+        print("--------------")
+#        print("Devices cababilities: \n ", prob_domain.all_available_devices)
+        print("Devices type {} alternatives of each {} required task {} size {}:".format(n_dev_types, n_dev_alter, prob_domain.task, len(prob_domain.task)))
+#        print("Compitable devices per task index: \n", prob_domain.subtask_dev)
+        #print("User pref: ",rand_user_pref)
+
+        exh_search = BruteForceSearch(prob_domain.get_subtask_dev()[0], user_model.get_score).run()
+        print("Brute Force Search: ", exh_search[0], " ", exh_search[1])
+
+
+
+
+        for i in range(10):
+
+            # define heuristic algorithms objects
+            hc = HillClimbing(prob_domain.get_all_neighbors, user_model.get_score)
+            ga = GA(prob_domain, user_model.get_score)
+
             init_cand = prob_domain.get_rand_solution()
             (h_cand, h_score) = hc.climb(init_cand)
-            print(h_cand, h_score)
 
-     #       simulated_annealing = TasktoIoTmapingProblem(init_cand, prob_domain, user_model.get_score)
-      #      (s_cand, s_score) = simulated_annealing.anneal()
+            simulated_annealing = TasktoIoTmapingProblem(init_cand, prob_domain, user_model.get_score)
+            (s_cand, s_score) = simulated_annealing.anneal()
+            #
+            ga_result = ga.run(n=1000, max_iteration=1000)
+            #
+            print("Result ",1.0 - s_score, " ", h_score, " ", ga_result[1][0], " ", s_cand, " ", h_cand, " ", ga_result[0])
 
-       #     ga_result = ga.run(n=1000, max_iteration=1000)
 
-        #    print("Result ",1.0 - s_score, " ", h_score, " ", ga_result[1], " ", s_cand, " ", h_cand, " ", ga_result)
 
+if __name__ == "__main__":
+    start = timer()
+    main()
+    end = timer()
+    print("Elapse time is {} sec ".format(end-start))
