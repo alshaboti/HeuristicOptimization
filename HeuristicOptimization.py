@@ -587,13 +587,12 @@ class RandomDAG:
 
 # from https://github.com/jmschrei/pomegranate/blob/master/examples/bayesnet_asia.ipynb
 class User_model:
-    def __init__(self, n_nodes, n_alters, n_edges, all_avail_dev):
+    def __init__(self, n_nodes, n_alters, n_edges):
 
         self.n_nodes = n_nodes
         self.n_alters = n_alters
         self.n_edges = n_edges
         assert (n_edges < (n_nodes-1)*(n_nodes-2)/2), " Can't create DAG with this number of edges!"
-        self.all_devices = all_avail_dev
         self.alters_list = self.get_alter_list(n_alters)
         self.network = self.get_BN()
         self.network.bake()
@@ -772,10 +771,18 @@ def main():
         # use senthesis BN as user preference model
         # max edges: (n_dev_types-1)*(n_dev_types-2)/4)
         user_model = User_model(n_nodes=n_dev_types, n_alters=n_dev_alter, \
-                                n_edges=randint(int(n_dev_types / 4), n_dev_types), \
-                                all_avail_dev=prob_domain.all_available_devices)
+                                n_edges=randint(int(n_dev_types / 4), n_dev_types))
+        print(prob_domain.task)
+        print(prob_domain.all_available_devices)
+        print(prob_domain.get_subtask_dev()[0])
+        cand = prob_domain.get_rand_solution()
+        print(cand)
+        # NEIGHBORS ARE WRONG IN THIS NEW UPDATE
+        print(prob_domain.get_all_neighbors(cand))
 
         ################################
+        return  0
+
 
         #print("joint prob \n", user_model.network.probability([None, '1', '1', '0']))
 
