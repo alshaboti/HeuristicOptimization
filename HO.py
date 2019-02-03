@@ -710,9 +710,9 @@ def main(iteration):
 
     # total space = n_devices^n_task_subfunc
     # number of devices type e.g. door locks, lights, coffee makers
-    n_dev_types = 7
+    n_dev_types = 30
     # number of devices for each type, e.g two of each door, light,alarm, coffee maker
-    n_dev_alter = 2
+    n_dev_alter = 5
 
     # devices will be device1_alter1 device1_alter2 device2_alter1 device2_alter2 ... etc
     # so when devices 4 selected it means device2_alter2 from BN
