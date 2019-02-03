@@ -14,19 +14,10 @@ from deap import tools
 
 from pomegranate import BayesianNetwork
 from pomegranate import DiscreteDistribution, ConditionalProbabilityTable, State
-
 import networkx as nx
 import  random
 import  itertools
-import numpy as np
-# from pomegranate import *
-import numpy as np
-# Defining the Bayesian Model
-
-from pgmpy.models import BayesianModel
-from pgmpy.estimators import MaximumLikelihoodEstimator, BayesianEstimator
-import numpy as np
-import pandas as pd
+#import pandas as pd
 
 # np.random.seed(5)
 # random.seed(5)
@@ -34,88 +25,6 @@ randint = random.randint
 # https://github.com/jmschrei/pomegranate/blob/master/tutorials/B_Model_Tutorial_4b_Bayesian_Network_Structure_Learning.ipynb
 # https://github.com/pgmpy/pgmpy
 # another example: https://github.com/pgmpy/pgmpy_notebook/blob/master/notebooks/9.%20Learning%20Bayesian%20Networks%20from%20Data.ipynb
-
-
-# 1000000 points, dim=10, value: 0:100
-# freq  {50: 0, 100:0,150:0,200.0: 1, 250.0: 241,300.0: 11022, 400.0: 400753, 450.0: 367548, 350.0: 117474,
-#  500.0: 97764,  550.0: 5130,  600.0: 67, 650:0, 700:0, 800:0,850:0,900:0,950:0}
-# rand = random
-# rand.seed(4759843)
-# np_rand = np.random
-# np_rand.seed(94759843)
-
-
-class ProblemDomain:
-    """"This class generate an array of devices (available_devices)
-    [0 0 1 1 2 2 3 3] where each type repeated by number of alternatives, the value
-    represents the function they can do, so capabilities only one for now.
-    e.g. device number 2,3 can do task number 1 """
-
-    def __init__(self, n_dev_types,n_dev_alter, subtask_pool_list, n_dev_capab, task):
-
-        self.subtask_pool_list = subtask_pool_list
-        self.n_dev_types = n_dev_types
-        self.n_dev_alt = n_dev_alter
-        self.n_total_devices = n_dev_types * n_dev_alter
-        self.n_capab = n_dev_capab
-        #self.n_subtask = n_sub_task
-
-        self.subtask_dev = {}
-        self.all_available_devices = self.gen_devices()
-#        self.task = self.get_task()
-        self.task = task
-
-#        self.prob_domain_size =self.get_subtask_dev()[1]
-
-    def gen_devices(self):
-        # return an array with a list of all devices
-        # index is the device, value is the function it can do (capabilities).
-        # e.g. [0 0 1 1 2 2 3 3], four type of devices each two have same capabilities
-        # d0,d1 can do function 0, d4,d5 can do function 2
-        return list(np.array([i//self.n_dev_alt for i in range(self.n_total_devices)]))
-
-    def get_all_neighbors(self, cand):
-        # Get all other cand that can do the task but differ from current cand by one device.
-        neighbor_list = []
-        for cand_idx in range(len(cand)):
-            cand_dev_idx = cand[cand_idx]
-            fnk = self.all_available_devices[cand_dev_idx]
-            fnk_dev_idx = np.where(np.isin(self.all_available_devices,fnk))[0]
-            for fnk_dev_idx_alt in fnk_dev_idx:
-                if  fnk_dev_idx_alt != cand_dev_idx:
-                    new_neghbor = cand.copy()
-                    new_neghbor[cand_idx] = fnk_dev_idx_alt
-                    neighbor_list.append(new_neghbor)
-
-
-        return neighbor_list
-
-
-    def get_subtask_dev(self):
-        # return a dict: key is fun idx, value is a list of dev idx that are cabable to execute the func.
-
-        for f_idx in set(self.all_available_devices):
-            self.subtask_dev[f_idx] = []
-
-        for d_number in range(len(self.all_available_devices)):
-            t = self.all_available_devices[d_number]
-            self.subtask_dev[t].append(d_number)
-
-
-        self.prob_domain_size =1
-        for f_id, dev_lst in self.subtask_dev.items():
-            self.prob_domain_size *= len(dev_lst)
-
-        return self.subtask_dev, self.prob_domain_size
-
-
-    def get_rand_solution(self):
-        # return a random solution
-        sol = []
-        for f_id, dev_lst in self.subtask_dev.items():
-            sol.append(random.choice(dev_lst))
-
-        return sol
 
 
 
@@ -194,25 +103,20 @@ class BruteForceSearch:
     def run(self):
         max_score = -1
         best_cand = []
-        for fun_dev_cand in self.cprod():
+        cart_prod = (dict(zip(self.subt_dev_dict, x)) \
+                for x in itertools.product(*self.subt_dev_dict.values()))
+        
+        for fun_dev_cand in cart_prod:
             tmp_cand = list(fun_dev_cand.values())
             tmp_score = self.get_score(tmp_cand)[0]
+            #print("best_cand, max_score, :",  best_cand, max_score)
+            #print("tmp, score, :", tmp_cand, tmp_score)
             if tmp_score > max_score:
                 max_score = tmp_score
                 best_cand = tmp_cand
                 if max_score == 1.0:
                     return max_score, best_cand
         return max_score, best_cand
-
-    def cprod(self):
-        """Generate cartesian product"""
-
-        if sys.version_info.major > 2:
-            return (dict(zip(self.subt_dev_dict, x)) for x in itertools.product(*self.subt_dev_dict.values()))
-
-        return (dict(itertools.izip(self.subt_dev_dict, x))
-                for x in itertools.product(*self.subt_dev_dict.itervalues()))
-
 
 class GA:
     """ GA algorithm """
@@ -240,7 +144,8 @@ class GA:
                               prob_domain.get_rand_solution)
 
         # define the population to be a list of individuals
-        self.toolbox.register("population", tools.initRepeat, list, self.toolbox.individual)
+        self.toolbox.register("population", tools.initRepeat, list, \
+            self.toolbox.individual)
 
         # ----------
         # Operator registration
@@ -262,23 +167,26 @@ class GA:
         self.toolbox.register("select", tools.selTournament, tournsize=3)
 
     def flipFunDev(self, indv, indpb):
-        # select random func to flip its device
-        f_idx = random.randint(0, len(indv) - 1)
-        # get the available devices for that func
-        #print("f_idx:", f_idx, " rand from 0 to indv ", indv)
-        f_devs_list = self.prob_domain.subtask_dev[f_idx]
-        #print("f_devs_list: ",f_devs_list)
+        if random.random() > indpb:
+            return indv
 
+        # select random func to flip its device
+        idx = random.randint(0, len(indv) - 1)
+        # get the available devices for that func
+        
+        f_idx  = self.prob_domain.task[idx]
+        f_devs_list = self.prob_domain.subtask_dev[f_idx]
+        
+        
         if len(f_devs_list) > 1:
             # select dev_id other than the existing one in indv
             d_idx = random.choice(f_devs_list)
-            i = 0
-            while d_idx == indv[f_idx] or (d_idx not in f_devs_list):
-                i += 1
+            
+            while d_idx == indv[idx]:            
                 d_idx = random.choice(f_devs_list)
 
-            indv[f_idx] = d_idx
-
+            indv[idx] = d_idx
+        
         return indv
 
     def run(self, n=100, max_iteration=100):
@@ -286,7 +194,7 @@ class GA:
 
         # create an initial population of 300 individuals (where
         # each individual is a list of integers)
-        pop = self.toolbox.population(n=1000)
+        pop = self.toolbox.population(n=n)
 
         # CXPB  is the probability with which two individuals
         #       are crossed
@@ -499,13 +407,13 @@ class User_model:
         self.n_edges = n_edges
         self.is_gen_task = is_gen_task
         # assert (n_edges < (n_nodes-1)*(n_nodes-2)/2), " Large number of edges, reduce them please!"
-        self.alters_list = self.get_alter_list(n_alters)
+        self.alters_list = self.get_dev_alter(n_alters)
         self.task_dict = {}
 
         self.network = self.get_BN()
         self.network.bake()
 
-    def get_alter_list(self, n_alter):
+    def get_dev_alter(self, n_alter):
         " used in getCondProb and get_score"
         return [str(c) for c in range(n_alter)]
 
@@ -566,7 +474,7 @@ class User_model:
             selected_task = nx.dag_longest_path(DAG)
             random_preference = [random.choice(self.alters_list) for i in selected_task]
             self.task_dict = dict(zip(selected_task, random_preference))
-            print("Device types (tasks) with alter are: ", self.task_dict)
+            #print("Device types (tasks) with alter are: ", self.task_dict)
 
         ################################################
 
@@ -621,8 +529,12 @@ class User_model:
         return self.network
 
     def get_score(self, cand_list):
-        can_dev = []
+        can_dev = self.build_BN_query(cand_list)
+       # print(can_dev)
+        return self.network.probability(can_dev),
 
+    def build_BN_query(self, cand_list):
+        can_dev = []
         for node_id in range(self.n_nodes):
             is_added = False
             for node_alter_id in range(self.n_alters):
@@ -630,11 +542,9 @@ class User_model:
                     can_dev.append(self.alters_list[node_alter_id])
                     is_added = True
             if not is_added:
-                can_dev.append(None)
+                can_dev.append(None)        
+        return can_dev
 
-        score = self.network.probability(can_dev)
-
-        return score, can_dev
 
     def get_permutation_groups(self, parent_node_lst, n_att):
         var_att_dict = {}
@@ -665,6 +575,9 @@ class User_model:
         condProbTable = []
 
         maxp_for_best_alter = 1.7 / n_att
+        if maxp_for_best_alter < 0.2:
+            maxp_for_best_alter = 0.2 
+
         if self.is_gen_task:
             intersect_dict = {k: v for k, v in self.task_dict.items() if k in parent_node_lst}
 
@@ -712,29 +625,103 @@ class User_model:
 
         return condProbTable
 
+class ProblemDomain:
+    """"This class generate an array of devices (available_devices)
+    [0 0 1 1 2 2 3 3] where each type repeated by number of alternatives, the value
+    represents the function they can do, so capabilities only one for now.
+    e.g. device number 2,3 can do task number 1 """
 
-#############################
-def main():
+    def __init__(self, n_dev_types,n_dev_alter, subtask_pool_list, n_dev_capab, task):
+
+        self.subtask_pool_list = subtask_pool_list
+        self.n_dev_types = n_dev_types
+        self.n_dev_alt = n_dev_alter
+        self.n_total_devices = n_dev_types * n_dev_alter
+        self.n_capab = n_dev_capab
+        self.task = task
+
+        self.all_available_devices = self.gen_devices()
+        self.subtask_dev = self._get_subtask_dev()
+
+    def gen_devices(self):
+        # return an array with a list of all devices
+        # index is the device, value is the function it can do (capabilities).
+        # e.g. [0 0 1 1 2 2 3 3], four type of devices each two have same capabilities
+        # d0,d1 can do function 0, d4,d5 can do function 2
+        return list(np.array([i//self.n_dev_alt for i in range(self.n_total_devices)]))
+
+    def get_all_neighbors(self, cand):
+        # Get all other cand that can do the task but differ from current cand by one device.
+        neighbor_list = []
+        for cand_idx in range(len(cand)):
+            cand_dev_idx = cand[cand_idx]
+            fnk = self.all_available_devices[cand_dev_idx]
+            fnk_dev_idx = np.where(np.isin(self.all_available_devices,fnk))[0]
+            for fnk_dev_idx_alt in fnk_dev_idx:
+                if  fnk_dev_idx_alt != cand_dev_idx:
+                    new_neghbor = cand[:]
+                    new_neghbor[cand_idx] = fnk_dev_idx_alt
+                    neighbor_list.append(new_neghbor)
+
+
+        return neighbor_list
+
+
+    # return all devices that can exectue this task
+    def _get_subtask_dev(self):
+        # return a dict: key is fun idx, value is a list of dev idx that are 
+        # cabable to execute the func.
+        self.subtask_dev = {}
+        for f_idx in self.task:
+            self.subtask_dev[f_idx] = []
+
+        for d_idx in range(len(self.all_available_devices)):
+            f_id = self.all_available_devices[d_idx]
+            if f_id in self.task:
+                self.subtask_dev[f_id].append(d_idx)
+
+
+        # self.prob_domain_size =1
+        # for f_id, dev_lst in self.subtask_dev.items():
+        #     self.prob_domain_size *= len(dev_lst)
+
+        return self.subtask_dev #, self.prob_domain_size
+
+    def get_rand_solution(self):
+        # return a random solution 
+        # list of dev_idx ordered by task number (i.e. first dev for first task)
+        sol = []
+        for t in self.task:
+            sol.append(random.choice(self.subtask_dev[t]))
+
+        return sol
+
+    def get_dev_instance(self, dev_id_lst):
+        # this one should be similar to usermodel alter_list
+
+        alt_list = [str(c) for c in range(self.n_dev_alt)]
+        return {self.all_available_devices[dev_id]:alt_list[dev_id%self.n_dev_alt] \
+            for dev_id in dev_id_lst}
+        
+
+
+def main(iteration):
     # user_pref = UserPreference([],[])
 
     # total space = n_devices^n_task_subfunc
     # number of devices type e.g. door locks, lights, coffee makers
-    n_dev_types = 6
+    n_dev_types = 7
     # number of devices for each type, e.g two of each door, light,alarm, coffee maker
-    n_dev_alter = 3
+    n_dev_alter = 2
 
     # devices will be device1_alter1 device1_alter2 device2_alter1 device2_alter2 ... etc
     # so when devices 4 selected it means device2_alter2 from BN
 
     # number of unique function(selected from the subtask_pool_list in each devices
     n_device_capab = 1
-    # number of unique functions in each task e.g. may use three devices
-    n_task_subfunc = 3 #int(n_dev_types/2)
+
     # e.g. 0 for doors, 1 for alarm, 2 for light, 3 for coffee maker
     subtask_pool_list = set(range(n_dev_types))
-
-
-
 
     # using BN as user preference model (static)
     # user_model = Static_User_model()
@@ -742,76 +729,103 @@ def main():
     #print(network.predict_proba({}))
 
     user_model = User_model(n_nodes=n_dev_types, n_alters=n_dev_alter, \
-                            n_edges=randint(int(n_dev_types / 4), n_dev_types), \
-                            is_gen_task=True)
+                            n_edges=randint(int(n_dev_types / 4), \
+                                n_dev_types), is_gen_task=True)
 
+    best_cand = [t*n_dev_alter+int(alt) for t,alt in user_model.task_dict.items()]
+    print(">>>Task and best devices for each is :", user_model.task_dict)
+    print("best_cand:", best_cand, \
+        " score: ", user_model.get_score( best_cand) )
 
     #for n_task_subfunc in range(9,11):
-
-    prob_domain = ProblemDomain(n_dev_types =n_dev_types, n_dev_alter = n_dev_alter, \
-                                subtask_pool_list=subtask_pool_list, \
-                                n_dev_capab=n_device_capab, task= user_model.task_dict.keys())
+    task = list(user_model.task_dict.keys())
+    prob_domain = ProblemDomain(n_dev_types =n_dev_types, \
+        n_dev_alter = n_dev_alter, \
+        subtask_pool_list=subtask_pool_list, \
+        n_dev_capab=n_device_capab, task= task)
 
     # print(prob_domain.all_available_devices)
-    print(prob_domain.get_subtask_dev()[0])
-    # cand = prob_domain.get_rand_solution()
-    # print(cand)
-    # print(prob_domain.get_all_neighbors(cand))
+    # print("Alter devices idx for each task: ",prob_domain.subtask_dev)
+    # print("--------------")
 
-
-    # use senthesis BN as user preference model
-    # max edges: (n_dev_types-1)*(n_dev_types-2)/4)
-
-
-    ################################
-
-    #print("joint prob \n", user_model.network.probability([None, '1', '1', '0']))
-
-    #exit(0)
-    print("--------------")
-#        print("Devices cababilities: \n ", prob_domain.all_available_devices)
-    #print("Devices type {} alternatives of each {} required task {} size {}:".format(n_dev_types, n_dev_alter, prob_domain.task, len(prob_domain.task)))
-#        print("Compitable devices per task index: \n", prob_domain.subtask_dev)
-    #print("User pref: ",rand_user_pref)
-
+#   print("Devices cababilities: \n ", prob_domain.all_available_devices)
+    #print("Devices type {} alternatives of each {} required task {} size \
+    # {}:".format(n_dev_types, n_dev_alter, prob_domain.task, len(prob_domain.task)))
+#   print("Compitable devices per task index: \n", prob_domain.subtask_dev)
     start = timer()
-    exh_search = BruteForceSearch(prob_domain.get_subtask_dev()[0], user_model.get_score).run()
-    print("Brute Force Search: ", exh_search[0], " ", exh_search[1])
+    exh_search = BruteForceSearch(prob_domain.subtask_dev, \
+        user_model.get_score).run()
+    print("Brute Force Search: ", exh_search[0], " ", exh_search[1], \
+        " instances> ", prob_domain.get_dev_instance(exh_search[1]))
     end = timer()
-    print("Elapse time for BF is {} sec ".format(end - start))
+#    print("Elapse time for BF is {} sec ".format(end - start))
+
+    #sys.exit(0)
+    with open('data.txt','a+') as f:
+        f.write('{0} $ {1} $ {2} $ {3} $ {4} $ {5} $ {6} $ {7} $ {8} $ {9}' \
+            .format(iteration, \
+            user_model.task_dict.keys(), \
+            len(user_model.task_dict.keys()), \
+            best_cand,  \
+            user_model.get_score( best_cand)[0], \
+            end - start, \
+            exh_search[0],  \
+            exh_search[1], \
+            prob_domain.get_dev_instance(exh_search[1]), \
+            prob_domain.subtask_dev) + "\n")
 
 
-
-
-    for i in range(1):
-
+    
+    for i in range(30):
+        print("internal iteration:", i)
         # define heuristic algorithms objects
         start = timer()
         hc = HillClimbing(prob_domain.get_all_neighbors, user_model.get_score)
         init_cand = prob_domain.get_rand_solution()
         (h_cand, h_score) = hc.climb(init_cand)
         end = timer()
-        print("Elapse time for HC is {} sec ".format(end - start))
-
+        hc_time = end - start
+        print("Elapse time for HC is {} sec.".format(end - start))
+        
         start = timer()
         ga = GA(prob_domain, user_model.get_score)
         ga_result = ga.run(n=1000, max_iteration=1000)
         end = timer()
+        ga_time = end - start
         print("Elapse time for GA is {} sec ".format(end - start))
 
-
         start = timer()
-        simulated_annealing = TasktoIoTmapingProblem(init_cand, prob_domain, user_model.get_score)
+        simulated_annealing = TasktoIoTmapingProblem(init_cand, \
+            prob_domain, user_model.get_score)
         (s_cand, s_score) = simulated_annealing.anneal()
         end = timer()
+        sa_time = end - start
         print("Elapse time for SA is {} sec ".format(end - start))
-
-        print("Result ",1.0 - s_score, " ", h_score, " ", ga_result[1][0], " ", s_cand, " ", h_cand, " ", ga_result[0])
-        print("Task best")
+        result = '{0} $ {1} $ {2} $ {3} $ {4} $ {5} $ {6} $ {7} $ {8} $ \
+                {9} $ {10} $ {11} $ {12} $ {13}'.format( \
+                iteration,  \
+                i , \
+                1.0 - s_score,  \
+                h_score,  \
+                ga_result[1][0],  \
+                sa_time, \
+                hc_time, \
+                ga_time, \
+                s_cand,  \
+                h_cand,  \
+                ga_result[0], \
+                prob_domain.get_dev_instance(s_cand), \
+                prob_domain.get_dev_instance(h_cand), \
+                prob_domain.get_dev_instance(ga_result[0])) 
+        print(result)
+        with open('data.txt','a+') as f:
+            f.write(result+"\n")             
 
 
 if __name__ == "__main__":
     start = timer()
-    main()
+    for i in range(10):
+        print("external iteration: ", i)
+        main(i)
     end = timer()
-    print("Elapse time is {} sec ".format(end-start))
+    print("Over all Elapse time is sec {}".format(end-start))
