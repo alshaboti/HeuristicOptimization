@@ -5,7 +5,7 @@ import  itertools
 
 from searchalgorithms import *
 from usermodel import User_model
-
+from Results import OutputResult
 from timeit import default_timer as timer
 # np.random.seed(5)
 # random.seed(5)
@@ -104,7 +104,7 @@ def get_dev_funcs(n_devices, n_functions, \
 
     return devices, functions, func_alter_devices
 
-def main(iteration):
+def main(iteration, n_iteration, output_results):
     # number of devices type e.g. door locks, lights, coffee makers
     n_devices = 60
     # all functions in the IoT devices
@@ -153,8 +153,9 @@ def main(iteration):
     print("Brute Force Search: ", bf[0], " ", bf[1])
     end = timer()
     bf_time = end-start
-
-    for i in range(30):
+    
+    # create output file
+    for i in range(n_iteration):
         print("internal iteration:", i)
         # define heuristic algorithms objects
         start = timer()
@@ -167,7 +168,7 @@ def main(iteration):
 
         start = timer()
         ga = GA(prob_domain, user_model.get_score)
-        ga_result = ga.run(n=1000, max_iteration=1000)
+        ga_result = ga.run(n=100, max_iteration=1000)
         end = timer()
         ga_time = end - start
         # print("Elapse time for GA is {} sec ".format(end - start))
@@ -180,8 +181,7 @@ def main(iteration):
         sa_time = end - start
         # print("Elapse time for SA is {} sec ".format(end - start))
 
-        result = '{0} $ {1} $ {2} $ {3} $ {4} $ {5} $ {6} $ {7} $ {8} $ \
-                {9} $ {10} $ {11} $ {12} $ {13} $ {14} $ {15} $ {16} $ {17}'.format( \
+        result = '{0}${1}${2}${3}${4}${5}${6}${7}${8}${9}${10}${11}${12}${13}${14}${15}${16}${17}'.format( \
                 iteration,  \
                 i , \
                 len(user_model.task_fucs), \
@@ -200,16 +200,24 @@ def main(iteration):
                 s_cand,  \
                 h_cand,  \
                 ga_result[0]) 
-        print(result)
-        with open('data3.txt','a+') as f:
-            f.write(result+"\n")             
+        
+        output_results.write_results(result)
 
 
 if __name__ == "__main__":
     start = timer()
-    for i in range(10):
-        print("external iteration: ", i)
-        main(i)
+    header = "OuterIter$InterIter$task_len$avg_alter$up_score$BrutForce$SA_score$h_score$ga_score$bf_time$sa_time$hc_time$ga_time$up_cand$bf_cand$s_cand$h_cand$ga_cand"
+    output_results = OutputResult(file_name="./results/test.csv", \
+                                   header_row =header, sep="$")
+    n_iteration = 30
+    for outer_iteration in range(10):
+        print("external iteration: ", outer_iteration)
+        main(outer_iteration, n_iteration, output_results)
+        from_row = outer_iteration*n_iteration
+        to_row = (outer_iteration+1)*n_iteration-1
+        # create figures
+        output_results.create_figures(from_row, to_row)
+
     end = timer()
     print("Over all Elapse time is sec {}".format(end-start))
 

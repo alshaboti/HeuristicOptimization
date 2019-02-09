@@ -115,28 +115,13 @@ class GA:
         creator.create("Individual", list, fitness=creator.FitnessMax)
 
         self.toolbox = base.Toolbox()
-
-        # Attribute generator
-        #                      define 'attr_bool' to be an attribute ('gene')
-        #                      which corresponds to integers sampled uniformly
-        #                      from the range [0,1] (i.e. 0 or 1 with equal
-        #                      probability)
-        # self.toolbox.register("attr_bool", random.randint, 0, 1)
-
-        # Structure initializers
-        #                         define 'individual' to be an individual
-        #                         consisting of 100 'attr_bool' elements ('genes')
         self.toolbox.register("individual", tools.initIterate, creator.Individual,
                               prob_domain.get_rand_solution)
 
         # define the population to be a list of individuals
-        self.toolbox.register("population", tools.initRepeat, list, \
-            self.toolbox.individual)
+        self.toolbox.register("population", \
+            tools.initRepeat, list, self.toolbox.individual)
 
-        # ----------
-        # Operator registration
-        # ----------
-        # register the goal / fitness function
         self.toolbox.register("evaluate", self.get_score)
 
         # register the crossover operator
@@ -158,16 +143,14 @@ class GA:
 
         # select random func to flip its device
         idx = random.randint(0, len(indv) - 1)
+
         # get the available devices for that func
-        
         f_idx  = self.prob_domain.task[idx]
         f_devs_list = self.prob_domain.func_alter_devices[f_idx]
         
-        
         if len(f_devs_list) > 1:
             # select dev_id other than the existing one in indv
-            d_idx = random.choice(f_devs_list)
-            
+            d_idx = random.choice(f_devs_list)            
             while d_idx == indv[idx]:            
                 d_idx = random.choice(f_devs_list)
 
@@ -176,19 +159,15 @@ class GA:
         return indv
 
     def run(self, n=100, max_iteration=100):
-        # random.seed(64)
 
         # create an initial population of 300 individuals (where
         # each individual is a list of integers)
         pop = self.toolbox.population(n=n)
-
         # CXPB  is the probability with which two individuals
         #       are crossed
         #
         # MUTPB is the probability for mutating an individual
         CXPB, MUTPB = 0.5, 0.2
-
-        # print("Start of evolution")
 
         # Evaluate the entire population
         fitnesses = list(map(self.toolbox.evaluate, pop))
@@ -196,23 +175,38 @@ class GA:
         for ind, fit in zip(pop, fitnesses):
             ind.fitness.values = fit
 
-        # print("  Evaluated %i individuals" % len(pop))
-
         # Extracting all the fitnesses of
         fits = [ind.fitness.values[0] for ind in pop]
 
         # Variable keeping track of the number of generations
-        g = 0
-
+        gen = 0
+        # stop if for 10 gen improvement doesn't increase 
+        fit_margin = 0.01
+        no_improv_gen = 0
+        old_fits = -1
         # Begin the evolution
-        while max(fits) < 10 and g < max_iteration:
+        while gen < max_iteration:
             # A new generation
-            g = g + 1
-            # print("-- Generation %i --" % g)
+            gen = gen + 1
 
+            # (alshaboti) from here
+            max_fits = max(fits) 
+            # check if there is any improvement
+            if max_fits < (old_fits+ fit_margin):
+                no_improv_gen +=1
+                # if this is the 10th generation without improvement break
+                if no_improv_gen > 9:
+                    break 
+            # (alshaboti) to here
+
+            old_fits = max_fits
             # Select the next generation individuals
+            # elitisin (alshaboti) 10%
+            n_elitisin = int(n*0.1)
+            best_childs = tools.selBest(pop, n_elitisin)
+
             # same invd selected more than once! check if okay.
-            offspring = self.toolbox.select(pop, len(pop))
+            offspring = self.toolbox.select(pop, len(pop)-n_elitisin)
 
             # Clone the selected individuals
             offspring = list(map(self.toolbox.clone, offspring))
@@ -230,7 +224,6 @@ class GA:
                     del child2.fitness.values
 
             for mutant in offspring:
-
                 # mutate an individual with probability MUTPB
                 if random.random() < MUTPB:
                     self.toolbox.mutate(mutant)
@@ -247,21 +240,21 @@ class GA:
 
             # The population is entirely replaced by the offspring
             pop[:] = offspring
+            # add the best from last generation
+            pop.extend(best_childs)
 
             # Gather all the fitnesses in one list and print the stats
             fits = [ind.fitness.values[0] for ind in pop]
 
-            length = len(pop)
-            mean = sum(fits) / length
-            sum2 = sum(x * x for x in fits)
-            std = abs(sum2 / length - mean ** 2) ** 0.5
+            # length = len(pop)
+            # mean = sum(fits) / length
+            # sum2 = sum(x * x for x in fits)
+            # std = abs(sum2 / length - mean ** 2) ** 0.5
 
-            # print("  Min %s" % min(fits))
-            # print("  Max %s" % max(fits))
-            # print("  Avg %s" % mean)
-            # print("  Std %s" % std)
-        #
-        # print("-- End of (successful) evolution --")
+            # # print("  Min %s" % min(fits))
+            # # print("  Max %s" % max(fits))
+            # # print("  Avg %s" % mean)
+            # # print("  Std %s" % std)
 
         best_ind = tools.selBest(pop, 1)[0]
         # print("Best individual is %s, %s" % (best_ind, best_ind.fitness.values))

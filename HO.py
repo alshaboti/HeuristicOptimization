@@ -73,7 +73,7 @@ def get_dev_funcs(n_devices, n_functions, \
     # select number of function randomly
     g,s = max(n_devices,n_functions), min(n_devices,n_functions)
     min_nfun = max(int(g/(2*s)), min_task_per_devices)
-    max_nfun = max(int(g*2/s), min_task_per_devices)
+    max_nfun = max(int(g*3/s), min_task_per_devices)
     #but no device get more than n_functions
     max_nfun =  min(max_nfun, n_functions)
 
@@ -106,9 +106,9 @@ def get_dev_funcs(n_devices, n_functions, \
 
 def main(iteration):
     # number of devices type e.g. door locks, lights, coffee makers
-    n_devices = 30
+    n_devices = 60
     # all functions in the IoT devices
-    n_functions = 20  
+    n_functions = 30  
     min_task_per_devices = 2 
     min_device_per_function = 2
 
@@ -116,7 +116,12 @@ def main(iteration):
     devices, functions, func_alter_devices = get_dev_funcs(n_devices,n_functions, \
             min_task_per_devices, min_device_per_function )
 
-    n_edges = randint(int(n_functions / 4), int(n_functions/2))
+    alter_list_count = []
+    for f,devs in func_alter_devices.items():
+        alter_list_count.append(len(devs))
+
+
+    n_edges = randint(int(n_functions * 0.25), int(n_functions))
     if n_edges < 1:
         n_edges = 1
     user_model = User_model(nodes = functions, \
@@ -129,7 +134,8 @@ def main(iteration):
     print("functions:",functions)
     print("fun:dev: ",func_alter_devices)
     print("TASK: ",user_model.task_dict)
- 
+    print("Devices per task list", alter_list_count)
+
     task, up_cand = map(list, zip(*user_model.task_dict.items()) )
     up_score = user_model.get_score( up_cand)[0] 
     #list(user_model.task_dict.values())
@@ -175,10 +181,11 @@ def main(iteration):
         # print("Elapse time for SA is {} sec ".format(end - start))
 
         result = '{0} $ {1} $ {2} $ {3} $ {4} $ {5} $ {6} $ {7} $ {8} $ \
-                {9} $ {10} $ {11} $ {12} $ {13} $ {14} $ {15} $ {16}'.format( \
+                {9} $ {10} $ {11} $ {12} $ {13} $ {14} $ {15} $ {16} $ {17}'.format( \
                 iteration,  \
                 i , \
                 len(user_model.task_fucs), \
+                int( sum(alter_list_count)/len(alter_list_count)), \
                 up_score, \
                 bf[0], \
                 1.0 - s_score,  \
