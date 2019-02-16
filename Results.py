@@ -29,7 +29,7 @@ class OutputResult:
         self.sep = sep
         
         if not os.path.isfile(self.file_name):
-            with open(self.file_name,'a+') as f:
+            with open(self.file_name,'w+') as f:
                 f.write(self.header_row+"\n") 
 
         # Define a function to create a boxplot:
