@@ -148,7 +148,7 @@ if __name__ == "__main__":
     n_iteration = 30
     n_alter_dev_per_func = 7     
     experiment_no = 0
-    for task_len in range(2,7):
+    for task_len in range(2,8):
         print("Experiment with task len ", task_len, " and each with ", n_alter_dev_per_func, " alternative devices")
 
         main( n_alter_dev_per_func,task_len, n_iteration, output_results)        
@@ -157,6 +157,7 @@ if __name__ == "__main__":
         to_row = (experiment_no+1)*n_iteration-1
         # create figures
         output_results.create_figures(from_row, to_row)
+        experiment_no += 1
 
     end = timer()
     print("Over all Elapse time is sec {}".format(end-start))
