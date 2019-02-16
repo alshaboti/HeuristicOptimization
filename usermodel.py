@@ -5,6 +5,7 @@ import  itertools
 from pomegranate import BayesianNetwork
 from pomegranate import DiscreteDistribution, ConditionalProbabilityTable, State
 from RandomDAG import RandomDAG
+# from pprint import pprint
 
 randint = random.randint
 # https://github.com/jmschrei/pomegranate/blob/master/tutorials/B_Model_Tutorial_4b_Bayesian_Network_Structure_Learning.ipynb
@@ -13,99 +14,99 @@ randint = random.randint
 
 # from https://github.com/jmschrei/pomegranate/blob/master/examples/bayesnet_asia.ipynb
 
-class Static_User_model:
-    def __init__(self):
-        self.network = self.get_bayesnet()
-        self.devices = ['d1','d2','a1','a2','l1','l2','c1','c2',]
+      
+def get_dev_funcs(n_functions, \
+    min_dev_caps, n_alter_dev_per_func):
+    # functions will have fixed number of dev alter
+    # however, devices will have cap >= min_dev_caps
 
-    def get_bayesnet(self):
-        door_lock = DiscreteDistribution({'d1': 0.7, 'd2': 0.3})
+    # lots of devices with min_cap
+    max_dev_n = int(n_alter_dev_per_func/min_dev_caps * n_functions) 
+    # less devices with cap = alter_devices
+    min_dev_n = n_functions 
 
-        clock_alarm = DiscreteDistribution( { 'a1' : 0.8, 'a2' : 0.2} )
+    n_devices = randint(min_dev_n,max_dev_n) 
+   
+    devices_cap = { "d" + str(i) : [] for i in range(n_devices) }
+    functions = [ "f" + str(i) for i in range(n_functions) ]
+    func_alter_devices = { f: [] for f in functions} 
 
-        light = ConditionalProbabilityTable(
-            [[ 'd1', 'a1', 'l1', 0.96 ],
-             ['d1', 'a1', 'l2', 0.04 ],
-             [ 'd1', 'a2', 'l1', 0.89 ],
-             [ 'd1', 'a2', 'l2', 0.11 ],
-             [ 'd2', 'a1', 'l1', 0.96 ],
-             [ 'd2', 'a1', 'l2', 0.04 ],
-             [ 'd2', 'a2', 'l1', 0.89 ],
-             [ 'd2', 'a2', 'l2', 0.11 ]], [door_lock, clock_alarm])
+    for f in functions:
+        n_alt = 0
+        while n_alt< n_alter_dev_per_func:            
+            # pick rand d not already assigned to the func            
+            d = random.choice(list(set(devices_cap.keys()) - set (func_alter_devices[f])))
+            func_alter_devices[f].append(d)         
+            n_alt += 1
 
+    dev_no_cap = ["d" + str(i) for i in range(n_devices) ]
+    for f, d_alt in func_alter_devices.items():
+        for d in d_alt:
+            devices_cap[d].append(f)
+            if d in dev_no_cap:
+                dev_no_cap.remove(d)
 
+    for d in dev_no_cap:
+        del devices_cap[d]
 
-        coffee_maker = ConditionalProbabilityTable(
-            [[ 'a1', 'c1', 0.92 ],
-             [ 'a1', 'c2', 0.08 ],
-             [ 'a2', 'c1', 0.03 ],
-             [ 'a2', 'c2', 0.97 ]], [clock_alarm] )
-
-        s_door_lock = State(door_lock, name="door_lock")
-        s_clock_alarm = State(clock_alarm, name="clock_alarm")
-        s_light = State(light, name="light")
-        s_coffee_maker = State(coffee_maker, name="coffee_maker")
-        network = BayesianNetwork("User_pref")
-        network.add_nodes(s_door_lock, s_clock_alarm, s_light, s_coffee_maker)
-
-        network.add_edge(s_door_lock,s_light)
-        network.add_edge(s_clock_alarm,s_coffee_maker)
-        network.add_edge(s_clock_alarm,s_light)
-        network.bake()
-        return network
-
-    def get_score(self, cand_list):
-        #print(" get_Score: ",cand_list)
-        can_dev = []
-        for i in range(8): #to do make it general
-            if i%2 == 0:
-                if i in cand_list:
-                    can_dev.append(self.devices[i])
-                elif i+1 in cand_list:
-                    can_dev.append(self.devices[i+1])
-                else:
-                    can_dev.append(None)
-        #print(can_dev)
-        return self.network.probability(can_dev),can_dev
+    return devices_cap, functions, func_alter_devices
 
 
 # from https://github.com/jmschrei/pomegranate/blob/master/examples/bayesnet_asia.ipynb
 class User_model:
-    def __init__(self, nodes, n_edges, devices, func_alter_devices, is_gen_task):
-
-        self.nodes = nodes
-        self.n_edges = n_edges
-        self.devices = devices 
+    def __init__(self, is_gen_task, n_alter_dev_per_func):
         self.is_gen_task = is_gen_task
-        self.func_alter_devices = func_alter_devices
-
-        self.task_dict = {}
-       
+        self.n_alter_dev_per_func = n_alter_dev_per_func
+        self.task_dict = {}       
         # BN
         self.BN_node_orders = []
-        self.network = self.get_BN()
-        self.network.bake()
+        self.devices = None
+        self.nodes = None
+        self.func_alter_devices = None
+
+    def build_model(self,req_task_len):    
+        # 1,2 are based on montcarlo experimnet for tasklen(2 to 10)
+        # which return a DAG with less than 100 triels.
+        #1-req_task_len is 20% of total fucntions.        
+        n_nodes = 5 * req_task_len
+        #2- edges three times the task len        
+        n_edges = req_task_len * 3 
+        min_dev_caps = 2 
+
+        # number of funcitons for each device
+        self.devices, self.nodes, self.func_alter_devices = get_dev_funcs(n_nodes, \
+                min_dev_caps, self.n_alter_dev_per_func )
+        # pprint(self.func_alter_devices,width=1 )
+
+        rand_dag = RandomDAG(self.nodes, n_edges)
         
+        DAG, child_parent = rand_dag.get_custom_DAG(req_task_len)
+        # print("Child_parents returns by custom DAG: ")
+        # pprint(child_parent, width=1)
+        
+        for f in rand_dag.dag_longest_path(DAG):
+            self.task_dict[f] = ''
+
+        # check if we get the task length the at we want            
+        for f in self.task_dict.keys():
+            func_devices = self.func_alter_devices[f]
+            self.task_dict[ f ] = random.choice(func_devices)
         self.task_fucs = self.task_dict.keys()
+        # print(self.task_dict)
+
+        self.network = self.get_BN(DAG, child_parent)    
+        self.network.bake()       
+        
+ 
+
+
+
 
     def get_score(self, cand_list):
         can_dev = self.build_BN_query(cand_list) 
         # try:
         return self.network.probability(can_dev),
-        # except KeyError as ke:
-            
-        #     print("ERROR!!!!!!!")
-        #     print("TASK: ", self.task_fucs)
-        #     print("cand: ", cand_list)
-        #     print("dev:  ", can_dev)
-
-        #     print("dist:", self.npd)
-        #     #print(self.network.states)
-        #     print("-----------------")
-        #     print(ke.value())
-            
         
-
     def build_BN_query(self, cand_list):
         # first cand_list for first func in task
         can_dev = [None for f in self.nodes]
@@ -122,33 +123,39 @@ class User_model:
 
         for node in node_without_parents:
             n_alters = len(self.func_alter_devices[node])
-            p = np.random.random(n_alters)
-            p /= p.sum()
-            # now the sum of p is 1
-
             dist = {}
+
             # node not in the user preference nodes
             # give random probability for all
             if node not in self.task_dict.keys():
+                p = np.random.random(n_alters)
+                p /= p.sum()
+                # now the sum of p is 1
                 # randomly map p to alter devices
                 dist = dict( zip(self.func_alter_devices[node] , p) )
 
             else:  # set max prob to the perfered alter
                 pref_alter = self.task_dict[node]
-                dist[pref_alter] = np.amax(p)
-                p = list(p)
-                p.remove(dist[pref_alter])
-                # remove best_alter from alter and set the rest of the prob to them
+                x = 1.7 / n_alters
+                y = 1.0/len(self.task_dict)
+                maxp_for_best_alter = pow(x,y)                
+                dist[pref_alter] = maxp_for_best_alter
+
                 alt_list = list(self.func_alter_devices[node])
                 alt_list.remove(pref_alter)
 
-                #np.delete(p, np.amax(p))
-                dist.update(dict(zip(alt_list, p)))
-
+                # generate random prob for the rest of alter
+                if n_alters == 2:
+                    dist.update(dict(zip(alt_list, [1-maxp_for_best_alter])))
+                    # print([1.0-maxp_for_best_alter])
+                else:
+                    rand_rest = np.random.random(n_alters - 1)
+                    # to make the maxp+sum(rand_rest) = 1
+                    rand_prob = [e/sum(rand_rest)*maxp_for_best_alter for e in rand_rest]
+                    #np.delete(p, np.amax(p))
+                    dist.update(dict(zip(alt_list, rand_prob)))
             # save node with its prob
             node_prob_dict[node] = dist
-
-        #print("Root nodes: ", node_prob_dict)
 
         # these nodes have parents, generate CPT for them
         for node, parent_lst in child_parent.items():
@@ -160,25 +167,10 @@ class User_model:
         
         return node_prob_dict
 
-    # n_types: number devices types (e.g. door_lock, camera, etc)
-    # n_alter: number of devices from same type
-    def get_BN(self):
 
-        # 1 Build BN DAG structure
-        rand_dag = RandomDAG(self.nodes, self.n_edges)
-        DAG, child_parent     = rand_dag.random_dag()
-        
-        # for a, bs in DAG.edge.items():
-        #     for b in bs.keys():
-        #         print(a, "->", b)
-        ################################################
-        # select a random nodes and vlaue as user preference
-        if self.is_gen_task:
-            selected_tasks = rand_dag.dag_longest_path(DAG)
-            for f in selected_tasks:
-                func_devices = self.func_alter_devices[f]
-                self.task_dict[ f ] = random.choice(func_devices)
-        
+    def get_BN(self, DAG, child_parent):
+
+        #1. get DAG structure as an arguments        
         ################################################        
         node_without_parents = [e for e in self.nodes if e not in child_parent.keys()]
 
@@ -199,6 +191,7 @@ class User_model:
 
         for node in node_without_parents:
             prob_dist = node_prob_dict[node]
+            # print("Parent", node, prob_dist)
             node_dist = DiscreteDistribution(prob_dist)
             nodes_dist[node] = node_dist
             nodes_state[node] = State(node_dist, name=node)
@@ -211,7 +204,7 @@ class User_model:
                 # if node's parents already created then it can be created now
                 if set(parent_lst).issubset(nodes_state.keys()) and \
                     node in remaining_nodes_list:
-
+                    # print("parent child", parent_lst, node, node_prob_dict[node]) 
                     node_dist = ConditionalProbabilityTable(node_prob_dict[node], \
                                     [nodes_dist[i] for i in parent_lst])
                     
@@ -231,16 +224,23 @@ class User_model:
         for a, bs in DAG.edge.items():
             for b in bs.keys():
                 self.network.add_edge(nodes_state[a], nodes_state[b])
+                # print("Netwoerk:", a, b)
         #       print("Network has ", self.network.node_count() , " nodes and ", self.network.edge_count(), " edges")
         return self.network
 
+
     def get_permutation_groups(self, parent_node_lst):
+        # print("Parents,node", parent_node_lst)
         alter_dev = []
         for n in parent_node_lst:
             alter_dev.append( self.func_alter_devices[n] )
             # list(range(n_att))
-
-        permutation = list(dict(zip(parent_node_lst, x)) for x in  itertools.product(*alter_dev) )
+        # print("dev for all ", alter_dev)
+        alter_perm = itertools.product(*alter_dev)
+        # print("alter_perm:", alter_perm)
+        permutation = list(dict(zip(parent_node_lst, x)) for x in  alter_perm )
+        # print("permutation")   
+        # print(permutation)
 
        # Gruop the permutation of node alter node
         n_func_dev = len(self.func_alter_devices[parent_node_lst[-1]])
@@ -258,14 +258,15 @@ class User_model:
         parent_node_lst = []
         parent_node_lst.extend(parent_lst)
         parent_node_lst.append(node)
+        
         perm_groups_prob = self.get_permutation_groups(parent_node_lst)
         
-        #print(perm_groups_prob)
+        
         condProbTable = []
 
         n_func_dev = len(self.func_alter_devices[ node ])
-
-        maxp_for_best_alter = 1.7 / n_func_dev
+        #p^(1/N)
+        maxp_for_best_alter = pow(1.7 / n_func_dev,1/len(self.task_dict))
         if maxp_for_best_alter < 0.2:
             maxp_for_best_alter = 0.2 
 

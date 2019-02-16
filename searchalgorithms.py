@@ -51,18 +51,18 @@ class HillClimbing:
 #https://github.com/perrygeo/simanneal
 class TasktoIoTmapingProblem(Annealer):
     """" Mapping tasks functions to a best combination of devices preferred by user"""
-
-    # rand.seed(58479)
-    # Tmax = 10000
-    # steps = 10000
-    # updates = 1000
-
+    # default values
+    # Tmax = 25000
+    # Tmin = 2.5
+    # steps = 50000
+    # updates = 100
     def __init__(self, init_state, problem_model,get_score ):
         Annealer.__init__(self, init_state)
         self.problem_model = problem_model
         self.get_score = get_score
         # if you don't want to see any update in the output
-        self.updates=0
+        self.updates = 0
+        self.steps = 10000
 
     def move(self):
         """"select random neighbor"""

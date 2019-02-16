@@ -1,4 +1,5 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
+
 import numpy as np
 import  random
 import  itertools
@@ -44,7 +45,6 @@ class ProblemDomain:
 
         return neighbor_list
 
-
     def get_rand_solution(self):
         # return a random solution 
         # list of dev_idx ordered by task number (i.e. first dev for first task)
@@ -54,94 +54,30 @@ class ProblemDomain:
 
         return sol
 
-    # def get_dev_instance(self, dev_id_lst):
-    #     # this one should be similar to usermodel alter_list
+ 
+def main(n_alter_dev_per_func, task_len, n_iteration, output_results):
 
-    #     alt_list = [str(c) for c in range(self.n_dev_alt)]
-    #     return {self.all_available_devices[dev_id]:alt_list[dev_id%self.n_dev_alt] \
-    #         for dev_id in dev_id_lst}
-        
+    user_model = User_model(is_gen_task = True, \
+                            n_alter_dev_per_func = n_alter_dev_per_func) 
+  
+    # functions are nodes, devices are values for BN node
+    user_model.build_model(req_task_len= task_len)
 
-
-       
-def get_dev_funcs(n_devices, n_functions, \
-    min_task_per_devices, min_device_per_function):
-
-    devices = { "d" + str(i) : [] for i in range(n_devices) }
-    functions = [ "f" + str(i) for i in range(n_functions) ]
-    
-    # select number of function randomly
-    g,s = max(n_devices,n_functions), min(n_devices,n_functions)
-    min_nfun = max(int(g/(2*s)), min_task_per_devices)
-    max_nfun = max(int(g*3/s), min_task_per_devices)
-    #but no device get more than n_functions
-    max_nfun =  min(max_nfun, n_functions)
-
-    n_funct_per_device = [random.randint(min_nfun, \
-                 max_nfun) for _ in range(n_devices)]
-
-    while sum(n_funct_per_device) < n_functions:
-            n_funct_per_device = [random.randint(min_nfun, \
-                 max_nfun) for _ in range(n_devices)]
-        
-    for i in range(n_devices):
-        devices["d"+str(i)].extend( random.sample(functions, \
-            n_funct_per_device[i]))
-    
-    func_alter_devices = { f: [] for f in functions}   
-    for f in functions:
-        selection_times = 0
-        for d, d_fns in devices.items():             
-            if f in d_fns:
-                func_alter_devices[f].append(d)
-                selection_times += 1
-        # check if a function doesn't selected and add it to random device
-        while selection_times < min_device_per_function:
-            dev_idx = random.randint(0,n_devices-1)
-            n_funct_per_device[dev_idx] += 1            
-            func_alter_devices[f].append("d"+str(dev_idx))
-            selection_times += 1
-
-    return devices, functions, func_alter_devices
-
-def main(iteration, n_iteration, output_results):
-    # number of devices type e.g. door locks, lights, coffee makers
-    n_devices = 60
-    # all functions in the IoT devices
-    n_functions = 30  
-    min_task_per_devices = 2 
-    min_device_per_function = 2
-
-    # number of funcitons for each device
-    devices, functions, func_alter_devices = get_dev_funcs(n_devices,n_functions, \
-            min_task_per_devices, min_device_per_function )
-
-    alter_list_count = []
-    for f,devs in func_alter_devices.items():
-        alter_list_count.append(len(devs))
-
-
-    n_edges = randint(int(n_functions * 0.25), int(n_functions))
-    if n_edges < 1:
-        n_edges = 1
-    user_model = User_model(nodes = functions, \
-                            n_edges = n_edges, \
-                            devices = devices, \
-                            func_alter_devices = func_alter_devices, \
-                            is_gen_task = True)
+    devices = user_model.devices
+    functions = user_model.nodes
+    func_alter_devices = user_model.func_alter_devices
 
     print("devices: ",devices)
     print("functions:",functions)
     print("fun:dev: ",func_alter_devices)
     print("TASK: ",user_model.task_dict)
-    print("Devices per task list", alter_list_count)
-
+    
     task, up_cand = map(list, zip(*user_model.task_dict.items()) )
     up_score = user_model.get_score( up_cand)[0] 
     #list(user_model.task_dict.values())
     print("best_cand:", up_cand, \
         " score: ", up_score)
-    
+   
     prob_domain = ProblemDomain(devices = devices, \
         functions = functions, \
         func_alter_devices = func_alter_devices, \
@@ -153,10 +89,11 @@ def main(iteration, n_iteration, output_results):
     print("Brute Force Search: ", bf[0], " ", bf[1])
     end = timer()
     bf_time = end-start
-    
+
+    print("Task len: ", task_len, " no alter devices per task", n_alter_dev_per_func)
     # create output file
-    for i in range(n_iteration):
-        print("internal iteration:", i)
+    for iteration in range(n_iteration):
+        print("iteration:", iteration)
         # define heuristic algorithms objects
         start = timer()
         hc = HillClimbing(prob_domain.get_all_neighbors, user_model.get_score)
@@ -181,11 +118,10 @@ def main(iteration, n_iteration, output_results):
         sa_time = end - start
         # print("Elapse time for SA is {} sec ".format(end - start))
 
-        result = '{0}${1}${2}${3}${4}${5}${6}${7}${8}${9}${10}${11}${12}${13}${14}${15}${16}${17}'.format( \
-                iteration,  \
-                i , \
-                len(user_model.task_fucs), \
-                int( sum(alter_list_count)/len(alter_list_count)), \
+        result = '{0}${1}${2}${3}${4}${5}${6}${7}${8}${9}${10}${11}${12}${13}${14}${15}${16}'.format( \
+                iteration , \
+                task_len, \
+                n_alter_dev_per_func, \
                 up_score, \
                 bf[0], \
                 1.0 - s_score,  \
@@ -206,15 +142,19 @@ def main(iteration, n_iteration, output_results):
 
 if __name__ == "__main__":
     start = timer()
-    header = "OuterIter$InterIter$task_len$avg_alter$up_score$BrutForce$SA_score$h_score$ga_score$bf_time$sa_time$hc_time$ga_time$up_cand$bf_cand$s_cand$h_cand$ga_cand"
-    output_results = OutputResult(file_name="./results/test.csv", \
+    header = "InterIter$task_len$n_dev_alter$up_score$BrutForce$SA_score$h_score$ga_score$bf_time$sa_time$hc_time$ga_time$up_cand$bf_cand$s_cand$h_cand$ga_cand"
+    output_results = OutputResult(file_name="./results/results.csv", \
                                    header_row =header, sep="$")
     n_iteration = 30
-    for outer_iteration in range(10):
-        print("external iteration: ", outer_iteration)
-        main(outer_iteration, n_iteration, output_results)
-        from_row = outer_iteration*n_iteration
-        to_row = (outer_iteration+1)*n_iteration-1
+    n_alter_dev_per_func = 7     
+    experiment_no = 0
+    for task_len in range(2,7):
+        print("Experiment with task len ", task_len, " and each with ", n_alter_dev_per_func, " alternative devices")
+
+        main( n_alter_dev_per_func,task_len, n_iteration, output_results)        
+        
+        from_row = experiment_no*n_iteration
+        to_row = (experiment_no+1)*n_iteration-1
         # create figures
         output_results.create_figures(from_row, to_row)
 
