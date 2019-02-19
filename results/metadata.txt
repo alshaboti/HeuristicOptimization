@@ -1,0 +1,38 @@
+Experiment with task len  2  and each with  7  alternative devices
+devices:  {'d0': ['f1', 'f3', 'f6', 'f7', 'f8'], 'd2': ['f5', 'f8', 'f9'], 'd3': ['f0', 'f2', 'f5', 'f8'], 'd4': ['f2', 'f4', 'f6', 'f7', 'f8'], 'd5': ['f6'], 'd6': ['f0', 'f2', 'f3', 'f9'], 'd7': ['f5', 'f7', 'f8', 'f9'], 'd8': ['f2', 'f4', 'f5', 'f8'], 'd9': ['f0', 'f1', 'f3', 'f6', 'f7', 'f9'], 'd10': ['f0', 'f2', 'f3', 'f6', 'f7'], 'd11': ['f1', 'f9'], 'd12': ['f2', 'f4', 'f5', 'f6'], 'd13': ['f3', 'f7', 'f9'], 'd14': ['f1', 'f3', 'f4', 'f5', 'f7', 'f9'], 'd15': ['f0', 'f1', 'f3', 'f4'], 'd16': ['f1', 'f6'], 'd17': ['f0', 'f1', 'f2', 'f4', 'f5'], 'd18': ['f0', 'f4', 'f8']}
+functions: ['f0', 'f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8', 'f9']
+fun:dev:  {'f0': ['d18', 'd9', 'd10', 'd6', 'd3', 'd17', 'd15'], 'f1': ['d14', 'd15', 'd11', 'd16', 'd17', 'd9', 'd0'], 'f2': ['d6', 'd17', 'd12', 'd10', 'd8', 'd3', 'd4'], 'f3': ['d15', 'd10', 'd6', 'd9', 'd14', 'd0', 'd13'], 'f4': ['d14', 'd17', 'd18', 'd15', 'd4', 'd12', 'd8'], 'f5': ['d3', 'd17', 'd2', 'd12', 'd14', 'd8', 'd7'], 'f6': ['d10', 'd9', 'd4', 'd5', 'd16', 'd0', 'd12'], 'f7': ['d10', 'd4', 'd7', 'd14', 'd9', 'd0', 'd13'], 'f8': ['d3', 'd7', 'd18', 'd4', 'd2', 'd8', 'd0'], 'f9': ['d2', 'd9', 'd13', 'd11', 'd14', 'd7', 'd6']}
+TASK:  {'f9': 'd2', 'f0': 'd18'}
+best_cand: ['d2', 'd18']  score:  0.49280538030458115
+Brute Force Search:  0.49280538030458115   ['d2', 'd18']
+Task len:  2  no alter devices per task 7
+iteration: 0
+iteration: 1
+iteration: 2
+iteration: 3
+iteration: 4
+iteration: 5
+iteration: 6
+iteration: 7
+iteration: 8
+iteration: 9
+iteration: 10
+iteration: 11
+iteration: 12
+iteration: 13
+iteration: 14
+iteration: 15
+iteration: 16
+iteration: 17
+iteration: 18
+iteration: 19
+iteration: 20
+iteration: 21
+iteration: 22
+iteration: 23
+iteration: 24
+iteration: 25
+iteration: 26
+iteration: 27
+iteration: 28
+iteration: 29
