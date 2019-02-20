@@ -63,14 +63,14 @@ class OutputResult:
     def create_figures(self, from_row, to_row):
         data = pd.read_csv(self.file_name, self.sep)
 
-        score_headers = ["BrutForce" , "SA_score" , "h_score" , "ga_score"]
+        score_headers = ["BF_score" , "SA_score" , "HC_score" , "GA_score"]
         x_headers = ["BF", "SA", "HC", "GA"]
         task_len =  data['task_len'][from_row]
         # score figure        
         score_data = [data[x][from_row:to_row].values for x in score_headers]
         x_label = 'Search algorithm (no functions per task = {0}, no alterernative devices ={1} )'.format( \
                     data['task_len'][from_row], \
-                    data['n_dev_alter'][from_row])
+                    data['dev_alter'][from_row])
         y_label = 'User preference probability'
         
         self._boxplot(x_data = score_headers
@@ -84,11 +84,11 @@ class OutputResult:
         plt.savefig(self.path +'/' +y_label+x_label+str(task_len)+".png")        
 
         # time figure
-        time_headers = ["bf_time" , "sa_time" , "hc_time", "ga_time"  ]
+        time_headers = ["BF_time" , "SA_time" , "HC_time", "GA_time"  ]
         time_data = [data[x][from_row:to_row].values for x in time_headers]
         x_label = 'Search algorithm (no functions per task = {0}, no alterernative devices ={1} )'.format( \
                     data['task_len'][from_row], \
-                    data['n_dev_alter'][from_row])
+                    data['dev_alter'][from_row])
         y_label = 'Time in seconds'        
         # # Call the function to create plot
         self._boxplot(x_data = x_headers

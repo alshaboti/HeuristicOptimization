@@ -62,13 +62,14 @@ class TasktoIoTmapingProblem(Annealer):
         self.get_score = get_score
         # if you don't want to see any update in the output
         self.updates = 0
-        self.steps = 10000
-
+        self.steps = 100000
+        # it was 10000  
     def move(self):
         """"select random neighbor"""
         neighbors = self.problem_model.get_all_neighbors(self.state)
         # print(neighbors)
-        self.state = neighbors[random.randint(0, len(neighbors) - 1)]
+        self.state = random.choice(neighbors)
+        #[random.randint(0, len(neighbors) - 1)]
         # print(self.state)
 
     def energy(self):
@@ -105,8 +106,19 @@ class BruteForceSearch:
         return max_score, best_cand
 
 class GA:
-    """ GA algorithm """
+    """ GA algorithm 
+    Generation_n *
+    population_size *
+    crossover = x *
+    else
+     mutation
+    elitizem = 0.1
+    selection method Tournament, size 3
+    stop creteria
+    initialization 
 
+    """
+    
     def __init__(self, prob_domain, get_score):
         self.prob_domain = prob_domain
         self.get_score = get_score
@@ -158,16 +170,16 @@ class GA:
         
         return indv
 
-    def run(self, n=100, max_iteration=100):
+    def run(self, generations =100, max_iteration=100):
 
         # create an initial population of 300 individuals (where
         # each individual is a list of integers)
-        pop = self.toolbox.population(n=n)
+        pop = self.toolbox.population(n=generations)
         # CXPB  is the probability with which two individuals
         #       are crossed
         #
         # MUTPB is the probability for mutating an individual
-        CXPB, MUTPB = 0.5, 0.2
+        CXPB, MUTPB = 0.7, 0.2
 
         # Evaluate the entire population
         fitnesses = list(map(self.toolbox.evaluate, pop))
@@ -197,12 +209,15 @@ class GA:
                 # if this is the 10th generation without improvement break
                 if no_improv_gen > 9:
                     break 
+            else:
+                no_improv_gen = 0
+
             # (alshaboti) to here
 
             old_fits = max_fits
             # Select the next generation individuals
             # elitisin (alshaboti) 10%
-            n_elitisin = int(n*0.1)
+            n_elitisin = int(generations*0.1)
             best_childs = tools.selBest(pop, n_elitisin)
 
             # same invd selected more than once! check if okay.

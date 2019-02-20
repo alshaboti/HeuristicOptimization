@@ -105,14 +105,19 @@ def main(n_alter_dev_per_func, task_len, n_iteration, output_results):
 
         start = timer()
         ga = GA(prob_domain, user_model.get_score)
-        ga_result = ga.run(n=100, max_iteration=1000)
+        ga_result = ga.run(generations=task_len*300, max_iteration=1000)
         end = timer()
         ga_time = end - start
         # print("Elapse time for GA is {} sec ".format(end - start))
 
         start = timer()
+        
         simulated_annealing = TasktoIoTmapingProblem(init_cand, \
             prob_domain, user_model.get_score)
+        # by observing auto I found that this is a good settings
+        sa_schedule ={'tmax': 3, 'tmin': 0.001, 'steps': 200000, 'updates': 0} 
+        simulated_annealing.set_schedule(sa_schedule)  
+
         (s_cand, s_score) = simulated_annealing.anneal()
         end = timer()
         sa_time = end - start
@@ -142,10 +147,10 @@ def main(n_alter_dev_per_func, task_len, n_iteration, output_results):
 
 if __name__ == "__main__":
     start = timer()
-    header = "InterIter$task_len$n_dev_alter$up_score$BrutForce$SA_score$h_score$ga_score$bf_time$sa_time$hc_time$ga_time$up_cand$bf_cand$s_cand$h_cand$ga_cand"
+    header = "Iteration$task_len$dev_alter$UP_score$BF_score$SA_score$HC_score$GA_score$BF_time$SA_time$HC_time$GA_time$UP_cand$BF_cand$SA_cand$HC_cand$GA_cand"
     output_results = OutputResult(file_name="./results/results.csv", \
                                    header_row =header, sep="$")
-    n_iteration = 30
+    n_iteration = 30  
     n_alter_dev_per_func = 7     
     experiment_no = 0
     for task_len in range(2,8):
@@ -153,10 +158,10 @@ if __name__ == "__main__":
 
         main( n_alter_dev_per_func,task_len, n_iteration, output_results)        
         
-        from_row = experiment_no*n_iteration
-        to_row = (experiment_no+1)*n_iteration-1
+        #from_row = experiment_no*n_iteration
+        #to_row = (experiment_no+1)*n_iteration-1
         # create figures
-        output_results.create_figures(from_row, to_row)
+        #output_results.create_figures(from_row, to_row)
         experiment_no += 1
 
     end = timer()
