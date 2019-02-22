@@ -115,7 +115,7 @@ def main(n_alter_dev_per_func, task_len, n_iteration, output_results):
         simulated_annealing = TasktoIoTmapingProblem(init_cand, \
             prob_domain, user_model.get_score)
         # by observing auto I found that this is a good settings
-        sa_schedule ={'tmax': 3, 'tmin': 0.001, 'steps': 200000, 'updates': 0} 
+        sa_schedule ={'tmax': 0.2, 'tmin': 0.0001, 'steps': 200000, 'updates': 0} 
         simulated_annealing.set_schedule(sa_schedule)  
 
         (s_cand, s_score) = simulated_annealing.anneal()
@@ -153,7 +153,7 @@ if __name__ == "__main__":
     n_iteration = 30  
     n_alter_dev_per_func = 7     
     experiment_no = 0
-    for task_len in range(2,8):
+    for task_len in range(4,8):
         print("Experiment with task len ", task_len, " and each with ", n_alter_dev_per_func, " alternative devices")
 
         main( n_alter_dev_per_func,task_len, n_iteration, output_results)        
